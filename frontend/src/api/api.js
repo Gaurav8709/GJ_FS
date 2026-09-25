@@ -2,7 +2,11 @@
    API Layer — GJ Fashion AI Smart Showroom
    ==================================================== */
 
-const BASE = import.meta.env.VITE_API_URL || '';
+let rawBase = import.meta.env.VITE_API_URL || '';
+if (typeof window !== 'undefined' && window.location.protocol === 'https:' && rawBase.startsWith('http://')) {
+  rawBase = '';
+}
+const BASE = rawBase;
 
 /* ---------- Token helpers ---------- */
 export const getToken  = () => localStorage.getItem('gj_token');
