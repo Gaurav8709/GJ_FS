@@ -1,0 +1,473 @@
+.heatmap-view {
+  padding: 24px;
+  color: var(--text-primary);
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.heatmap-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.header-title-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 6px;
+}
+
+.header-title-row h2 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #f3f4f6;
+  margin: 0;
+}
+
+.live-stream-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #10b981;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 9999px;
+}
+
+.pulse-dot.green {
+  width: 7px; height: 7px; border-radius: 50%; background: #10b981;
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  animation: pulse-green 2s infinite;
+}
+
+.heatmap-subtitle {
+  color: #9ca3af;
+  font-size: 0.88rem;
+  max-width: 800px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.heatmap-controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.control-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.control-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #9ca3af;
+  letter-spacing: 0.04em;
+}
+
+.cam-select {
+  background: #1a1c2e;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #f3f4f6;
+  padding: 9px 14px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  outline: none;
+}
+
+.time-filter-pills {
+  display: flex;
+  background: #121322;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 3px;
+}
+
+.filter-pill {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filter-pill.active {
+  background: #3b82f6;
+  color: white;
+}
+
+/* Grid Layout */
+.heatmap-main-grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .heatmap-main-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Display Card */
+.heatmap-display-card, .heatmap-sidebar-card {
+  background: #121322;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 22px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+}
+
+.display-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.cam-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cam-title-group h3 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #f3f4f6;
+  margin: 0;
+}
+
+.section-badge {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.header-badges {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.density-status-tag {
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 6px;
+  letter-spacing: 0.03em;
+}
+
+.expand-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #d1d5db;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.expand-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+}
+
+/* Image Container */
+.heatmap-image-wrapper {
+  background: #0a0b14;
+  border-radius: 10px;
+  min-height: 480px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.image-overlay-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.heatmap-overlay-img {
+  width: 100%;
+  max-height: 540px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.heatmap-watermark {
+  position: absolute;
+  bottom: 12px;
+  left: 14px;
+  right: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(10, 11, 20, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 6px 14px;
+  border-radius: 6px;
+  color: #9ca3af;
+  font-size: 0.75rem;
+  font-weight: 600;
+  backdrop-filter: blur(4px);
+}
+
+.no-heatmap-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.placeholder-icon {
+  font-size: 3rem;
+  margin-bottom: 12px;
+}
+
+.no-heatmap-placeholder h4 {
+  font-size: 1.15rem;
+  color: #f3f4f6;
+  margin: 0 0 6px 0;
+}
+
+.no-heatmap-placeholder p {
+  font-size: 0.85rem;
+  color: #9ca3af;
+  max-width: 420px;
+  margin: 0 0 16px 0;
+}
+
+.placeholder-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  color: #93c5fd;
+  font-size: 0.78rem;
+  padding: 6px 14px;
+  border-radius: 20px;
+}
+
+.placeholder-status code {
+  color: #38bdf8;
+  font-family: monospace;
+}
+
+/* Sidebar Card Analytics */
+.card-section-title {
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.card-section-title h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #f3f4f6;
+  margin: 0 0 4px 0;
+}
+
+.info-sub {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+/* Meter */
+.density-meter-box {
+  background: #18192a;
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 20px;
+}
+
+.meter-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.meter-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #9ca3af;
+  text-transform: uppercase;
+}
+
+.meter-val {
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.meter-track {
+  height: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.meter-bar-fill {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.5s ease;
+}
+
+.meter-scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.68rem;
+  color: #6b7280;
+}
+
+/* Insights */
+.insights-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.insight-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #18192a;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.insight-icon {
+  font-size: 1.4rem;
+}
+
+.insight-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.insight-label {
+  font-size: 0.7rem;
+  color: #9ca3af;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.insight-val {
+  font-size: 0.88rem;
+  color: #f3f4f6;
+  font-weight: 700;
+}
+
+/* Stream History */
+.stream-history-box h4 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #f3f4f6;
+  margin: 0 0 10px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #18192a;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.history-item:hover, .history-item.active {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.history-cam-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cam-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #60a5fa;
+}
+
+.time-badge {
+  font-size: 0.72rem;
+  color: #9ca3af;
+}
+
+.history-density {
+  font-size: 0.72rem;
+}
+
+.d-label { color: #6b7280; margin-right: 4px; }
+.d-val { color: #34d399; font-weight: 700; }
+
+/* Modal */
+.heatmap-modal {
+  width: 900px !important;
+  max-width: 95% !important;
+}
+
+.modal-heatmap-body {
+  display: flex;
+  justify-content: center;
+  background: #06070d;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.modal-heatmap-img {
+  max-width: 100%;
+  max-height: 620px;
+  object-fit: contain;
+  border-radius: 6px;
+}

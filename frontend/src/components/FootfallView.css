@@ -1,0 +1,222 @@
+.footfall-view {
+  padding: 24px;
+  color: var(--text-primary);
+}
+
+.footfall-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.footfall-header h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.footfall-subtitle {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.footfall-controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.cam-select {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+}
+
+.sim-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.sim-btn {
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: var(--transition-base);
+}
+
+.sim-btn.in {
+  background: rgba(16, 185, 129, 0.2);
+  color: var(--accent-green);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.sim-btn.out {
+  background: rgba(239, 68, 68, 0.2);
+  color: var(--accent-red);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.sim-btn:hover {
+  filter: brightness(1.2);
+}
+
+.footfall-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.kpi-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+}
+
+.kpi-title {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.kpi-value {
+  font-size: 1.8rem;
+  font-weight: 800;
+}
+
+.kpi-card.green .kpi-value { color: var(--accent-green); }
+.kpi-card.red .kpi-value { color: var(--accent-red); }
+.kpi-card.blue .kpi-value { color: var(--accent-blue); }
+
+.footfall-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+}
+
+.footfall-chart-card, .footfall-demo-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 20px;
+}
+
+.footfall-chart-card h3, .footfall-demo-card h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+
+/* Bar Chart */
+.bar-chart-container {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  height: 220px;
+  padding-bottom: 30px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.bar-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  justify-content: flex-end;
+  position: relative;
+}
+
+.bar-value {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent-blue);
+  margin-bottom: 4px;
+}
+
+.bar-fill {
+  width: 100%;
+  background: linear-gradient(180deg, var(--accent-blue) 0%, rgba(59, 130, 246, 0.2) 100%);
+  border-radius: 4px 4px 0 0;
+  transition: height 0.4s ease;
+}
+
+.bar-label {
+  position: absolute;
+  bottom: -24px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+/* Demographics */
+.section-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.gender-section {
+  margin-bottom: 24px;
+}
+
+.gender-bar-wrapper {
+  display: flex;
+  height: 24px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #1e1e2d;
+  margin-bottom: 10px;
+}
+
+.gender-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+
+  transition: width 0.4s ease;
+}
+
+.gender-bar.male { background: #3b82f6; color: #fff; }
+.gender-bar.female { background: #ec4899; color: #fff; }
+
+.gender-legend {
+  display: flex;
+  gap: 16px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.gender-legend .dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+}
+
+.male-dot { background: #3b82f6; }
+.female-dot { background: #ec4899; }
+
+.age-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 0.8rem;
+}
+
+.age-label { width: 60px; color: var(--text-muted); }
+.age-bar-track { flex: 1; height: 8px; background: #1e1e2d; border-radius: 4px; overflow: hidden; }
+.age-bar-fill { height: 100%; background: var(--accent-purple, #a855f7); border-radius: 4px; }
+.age-count { width: 30px; text-align: right; font-weight: 600; }
