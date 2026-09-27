@@ -12,7 +12,8 @@ API Endpoints:
 Note:
     Do NOT use port 8000 for remote IP 65.2.158.148 as the server reverse-proxies
     API requests on standard HTTP port 80. This script automatically handles 
-    retries and candidate URL fallbacks if port 8000 times out.
+    retries and candidate URL fallbacks if port 8000 times out. Uses standard 
+    library urllib.request (no external dependencies required).
 
 Usage in CV Pipeline:
     from cv_heatmap_pusher import push_camera_heatmap
@@ -31,9 +32,11 @@ CLI Usage:
 
 import os
 import json
+import uuid
 import logging
 import argparse
-import requests
+import urllib.request
+import urllib.error
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] [CV-Heatmap]: %(message)s")
 logger = logging.getLogger("cv_heatmap")
@@ -73,7 +76,7 @@ def push_camera_heatmap(
     api_base_url: str = None
 ):
     """
-    Uploads a camera heatmap image file and metadata to backend.
+    Uploads a camera heatmap image file and metadata to backend using standard library urllib.request.
 
     Args:
         cam_id (str): Camera identifier (e.g. "cam1", "cam06").
@@ -89,29 +92,54 @@ def push_camera_heatmap(
     if meta_info is None:
         meta_info = {"generated_by": "CV-Heatmap-Pipeline"}
 
-    data = {
-        "cam_id": cam_id,
+    boundary = f"----FormBoundary{uuid.uuid4().hex}"
+    body = bytearray()
+
+    # Add text fields
+    fields = {
+        "cam_id": str(cam_id),
         "peak_density": str(peak_density),
         "meta_info": json.dumps(meta_info)
     }
+
+    for name, value in fields.items():
+        body.extend(f"--{boundary}\r\n".encode("utf-8"))
+        body.extend(f'Content-Disposition: form-data; name="{name}"\r\n\r\n'.encode("utf-8"))
+        body.extend(f"{value}\r\n".encode("utf-8"))
+
+    # Add image file
+    filename = os.path.basename(heatmap_image_path)
+    with open(heatmap_image_path, "rb") as f:
+        file_data = f.read()
+
+    body.extend(f"--{boundary}\r\n".encode("utf-8"))
+    body.extend(f'Content-Disposition: form-data; name="file"; filename="{filename}"\r\n'.encode("utf-8"))
+    body.extend(b'Content-Type: image/png\r\n\r\n')
+    body.extend(file_data)
+    body.extend(b'\r\n')
+
+    body.extend(f"--{boundary}--\r\n".encode("utf-8"))
 
     candidates = get_api_candidates(api_base_url)
 
     for base in candidates:
         endpoint = f"{base}/api/heatmaps/upload"
         try:
-            filename = os.path.basename(heatmap_image_path)
-            with open(heatmap_image_path, "rb") as f:
-                files = {"file": (filename, f.read(), "image/png")}
-
-            r = requests.post(endpoint, data=data, files=files, timeout=5)
-            if r.status_code == 200:
-                result = r.json()
-                logger.info(f"Successfully uploaded Heatmap for {cam_id} to {endpoint}: {result.get('image_url')}")
-                return result
-            else:
-                logger.warning(f"Heatmap endpoint {endpoint} returned status {r.status_code}: {r.text}")
-        except Exception as e:
+            req = urllib.request.Request(
+                endpoint,
+                data=bytes(body),
+                headers={
+                    "Content-Type": f"multipart/form-data; boundary={boundary}",
+                    "User-Agent": "CV-Heatmap-Worker/1.0"
+                },
+                method="POST"
+            )
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                if resp.status == 200:
+                    result = json.loads(resp.read().decode())
+                    logger.info(f"Successfully uploaded Heatmap for {cam_id} to {endpoint}: {result.get('image_url')}")
+                    return result
+        except (urllib.error.URLError, TimeoutError, Exception) as e:
             logger.warning(f"Failed connection attempt to {endpoint}: {e}. Retrying next candidate...")
 
     logger.error(f"All candidate endpoints failed for heatmap upload ({cam_id}).")
@@ -150,4 +178,5 @@ if __name__ == "__main__":
         )
     else:
         logger.error(f"Image file '{args.image}' does not exist.")
+
 
