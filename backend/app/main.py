@@ -1,7 +1,17 @@
+import os
+import cv2
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+# Silence OpenCV and FFmpeg log spam globally
+os.environ["OPENCV_LOG_LEVEL"] = "OFF"
+os.environ["OPENCV_FFMPEG_LOGLEVEL"] = "-8"
+try:
+    cv2.utils.logging.setLogLevel(0)
+except Exception:
+    pass
 
 from app.database import engine, get_db, async_session
 from app.services.camera_manager import CameraManager

@@ -36,6 +36,14 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
+# Silence OpenCV and FFmpeg log output (suppresses HEVC POC 0 warnings and RTSP errors)
+os.environ["OPENCV_LOG_LEVEL"] = "OFF"
+os.environ["OPENCV_FFMPEG_LOGLEVEL"] = "-8"
+try:
+    cv2.utils.logging.setLogLevel(0)
+except Exception:
+    pass
+
 from app.config import settings
 from app.services.detection_engine import Detection, DetectionEngine
 from app.services.zone_engine import (
@@ -167,6 +175,8 @@ class CameraProcessor:
                 mock_frame = cv2.resize(mock_frame, (640, 480))
             logger.info(f"[{self.cam_id}] Loaded mock frame: {mock_img_path}")
 
+        backoff = 5
+
         while self._running:
             if has_mock and mock_frame is not None:
                 self.online = True
@@ -176,9 +186,9 @@ class CameraProcessor:
                 time.sleep(1.0 / 30.0)
                 continue
 
-            if not self.rtsp_url or not self.rtsp_url.strip():
+            if not self.rtsp_url or not self.rtsp_url.strip() or self.rtsp_url.startswith("rtsp://dummy") or "example.com" in self.rtsp_url:
                 self.online = False
-                time.sleep(2.0)
+                time.sleep(10)
                 continue
 
             # Open capture
@@ -188,25 +198,47 @@ class CameraProcessor:
                 self._cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             except Exception as e:
                 logger.error(f"[{self.cam_id}] Failed to open capture: {e}")
-                time.sleep(10)
+                time.sleep(min(60, backoff))
+                backoff *= 2
+                continue
+
+            if not self._cap or not self._cap.isOpened():
+                self.online = False
+                if self._cap:
+                    try:
+                        self._cap.release()
+                    except Exception:
+                        pass
+                    self._cap = None
+                time.sleep(min(60, backoff))
+                backoff *= 2
                 continue
 
             # Read loop
+            consecutive_failures = 0
             while self._running:
                 try:
                     ret, frame = self._cap.read()
                 except Exception:
                     ret = False
 
-                if not ret:
-                    self.online = False
-                    try:
-                        self._cap.release()
-                    except Exception:
-                        pass
-                    time.sleep(10)
-                    break  # outer loop will reconnect
+                if not ret or frame is None:
+                    consecutive_failures += 1
+                    if consecutive_failures > 5:
+                        self.online = False
+                        try:
+                            self._cap.release()
+                        except Exception:
+                            pass
+                        self._cap = None
+                        time.sleep(min(60, backoff))
+                        backoff *= 2
+                        break
+                    time.sleep(0.1)
+                    continue
 
+                backoff = 5
+                consecutive_failures = 0
                 self.online = True
                 with self._frame_lock:
                     self._ring.append(frame)
