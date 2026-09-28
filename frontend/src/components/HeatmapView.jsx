@@ -1,14 +1,21 @@
 import { useState, useEffect, useMemo } from 'react';
-import { getLatestHeatmaps, getHeatmapForCamera } from '../api/api.js';
+import { getLatestHeatmaps, getHeatmapForCamera, toggleCameraAnalytics } from '../api/api.js';
 import './HeatmapView.css';
 
-export default function HeatmapView({ cameras }) {
+export default function HeatmapView({ cameras: initialCameras = [] }) {
   const [heatmaps, setHeatmaps] = useState([]);
   const [selectedCam, setSelectedCam] = useState('');
   const [activeHeatmap, setActiveHeatmap] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [timeFilter, setTimeFilter] = useState('LATEST'); // LATEST, TODAY, HOUR
+  const [timeFilter, setTimeFilter] = useState('LATEST');
   const [fullscreenModal, setFullscreenModal] = useState(false);
+  const [camList, setCamList] = useState(initialCameras);
+  const [showConfigPanel, setShowConfigPanel] = useState(false);
+  const [togglingCam, setTogglingCam] = useState({});
+
+  useEffect(() => {
+    setCamList(initialCameras);
+  }, [initialCameras]);
 
   const fetchHeatmaps = () => {
     getLatestHeatmaps()
@@ -16,7 +23,6 @@ export default function HeatmapView({ cameras }) {
         const list = Array.isArray(data) ? data : [];
         setHeatmaps(list);
 
-        // Auto select first camera if none selected
         if (list.length > 0 && !selectedCam) {
           setSelectedCam(list[0].cam_id);
           setActiveHeatmap(list[0]);
@@ -46,14 +52,32 @@ export default function HeatmapView({ cameras }) {
     }
   }, [selectedCam]);
 
+  const handleToggleHeatmap = async (camId, currentVal) => {
+    const newVal = !currentVal;
+    setTogglingCam((prev) => ({ ...prev, [camId]: true }));
+    try {
+      await toggleCameraAnalytics(camId, { heatmap_enabled: newVal });
+      setCamList((prev) =>
+        prev.map((c) => (c.cam_id === camId ? { ...c, heatmap_enabled: newVal } : c))
+      );
+    } catch (err) {
+      console.error("Failed to toggle heatmap analytics:", err);
+      alert(`Could not toggle heatmap analytics for ${camId}: ${err.message}`);
+    } finally {
+      setTogglingCam((prev) => ({ ...prev, [camId]: false }));
+    }
+  };
+
   // Selected camera object details
   const currentCamObj = useMemo(() => {
-    return (cameras || []).find((c) => c.cam_id === selectedCam) || {
+    return (camList || []).find((c) => c.cam_id === selectedCam) || {
       cam_id: selectedCam || 'cam1',
       name: selectedCam ? selectedCam.toUpperCase() : 'Camera 1',
       section_name: 'Showroom Main Floor'
     };
-  }, [cameras, selectedCam]);
+  }, [camList, selectedCam]);
+
+  const activeHeatmapCams = camList.filter((c) => c.heatmap_enabled !== false);
 
   // Density calculations
   const densityVal = activeHeatmap?.peak_density || 0;
@@ -66,8 +90,6 @@ export default function HeatmapView({ cameras }) {
     { label: 'LOW TRAFFIC', color: '#10b981', bg: 'rgba(16, 185, 129, 0.15)' };
 
   const metaInfo = activeHeatmap?.meta_info || {};
-  const peakHour = metaInfo.peak_hour || '14:00 - 16:00';
-  const topZone = metaInfo.top_zone || 'Main Display Counter';
 
   return (
     <div className="heatmap-view animate-fade-in">
@@ -86,6 +108,14 @@ export default function HeatmapView({ cameras }) {
         </div>
 
         <div className="heatmap-controls">
+          <button 
+            className="config-toggle-btn"
+            onClick={() => setShowConfigPanel((p) => !p)}
+            title="Configure Heatmap Analytics Cameras"
+          >
+            ⚙️ Heatmap Config ({activeHeatmapCams.length}/{camList.length} Active)
+          </button>
+
           <div className="control-box">
             <span className="control-label">SELECT CAMERA:</span>
             <select 
@@ -94,9 +124,9 @@ export default function HeatmapView({ cameras }) {
               onChange={(e) => setSelectedCam(e.target.value)}
             >
               <option value="">Choose Showroom Camera</option>
-              {(cameras || []).map((c) => (
+              {(camList || []).map((c) => (
                 <option key={c.id || c.cam_id} value={c.cam_id}>
-                  {c.name || c.cam_id.toUpperCase()} ({c.section_name || 'Floor'})
+                  {c.name || c.cam_id.toUpperCase()} {c.heatmap_enabled === false ? '(Paused)' : '✓'}
                 </option>
               ))}
             </select>
@@ -118,6 +148,55 @@ export default function HeatmapView({ cameras }) {
           </div>
         </div>
       </div>
+
+      {/* Heatmap Camera Config Panel */}
+      {showConfigPanel && (
+        <div className="camera-config-card animate-fade-in" style={{ marginBottom: '24px' }}>
+          <div className="config-card-header">
+            <div>
+              <h3>🔥 Heatmap Camera Analytics Toggles</h3>
+              <p>Enable/disable KDE density heatmap generation for individual camera streams.</p>
+            </div>
+          </div>
+
+          <div className="camera-toggle-grid">
+            {camList.map((cam) => {
+              const isEnabled = cam.heatmap_enabled !== false;
+              const isBusy = togglingCam[cam.cam_id];
+
+              return (
+                <div key={cam.cam_id} className={`cam-config-tile ${isEnabled ? 'enabled' : 'disabled'}`}>
+                  <div className="tile-top">
+                    <div className="cam-title-info">
+                      <span className="cam-code">{cam.cam_id}</span>
+                      <span className="cam-name">{cam.name || cam.cam_id}</span>
+                    </div>
+
+                    <label className="switch-toggle" title="Toggle Heatmap Analytics">
+                      <input 
+                        type="checkbox" 
+                        checked={isEnabled} 
+                        disabled={isBusy}
+                        onChange={() => handleToggleHeatmap(cam.cam_id, isEnabled)}
+                      />
+                      <span className="slider round"></span>
+                    </label>
+                  </div>
+
+                  <div className="tile-meta">
+                    <div className="meta-line">
+                      <span className="meta-label">Status:</span>
+                      <span className={`status-badge ${isEnabled ? 'green' : 'gray'}`}>
+                        {isBusy ? 'Saving...' : isEnabled ? 'HEATMAP ACTIVE' : 'HEATMAP PAUSED'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Main Grid View */}
       <div className="heatmap-main-grid">

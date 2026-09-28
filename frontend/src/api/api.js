@@ -64,6 +64,9 @@ export const onboardCamera   = (data) => apiFetch('/api/cameras', { method: 'POS
 export const updateCamera    = (camId, data) => apiFetch(`/api/cameras/${camId}`, { method: 'PUT', body: JSON.stringify(data) });
 export const deleteCamera    = (camId) => apiFetch(`/api/cameras/${camId}`, { method: 'DELETE' });
 export const clearAllCameras = () => apiFetch('/api/cameras/clear-all', { method: 'DELETE' });
+export const toggleCameraAnalytics = (camId, payload) => apiFetch(`/api/cameras/${camId}/analytics-toggle`, { method: 'PUT', body: JSON.stringify(payload) });
+export const getFootfallCamerasConfig = () => apiFetch('/api/cameras/footfall-config');
+export const importFootfallCamerasConfig = (config) => apiFetch('/api/cameras/footfall-config/import', { method: 'POST', body: JSON.stringify(config) });
 
 /* ---------- Zones ---------- */
 export const getZones = (camId) => apiFetch(`/api/cameras/${camId}/zones`);

@@ -3,10 +3,10 @@ GJ-Fashion — Cameras Router
 Full CRUD & Onboarding for cameras + live status from CameraManager.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy import select, delete, func, text
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List
+from typing import List, Dict, Any
 
 from app.database import get_db
 from app.models.camera import Camera
@@ -24,6 +24,10 @@ async def _ensure_columns(db: AsyncSession):
     try:
         await db.execute(text("ALTER TABLE cameras ADD COLUMN IF NOT EXISTS web_rtsp_url VARCHAR(500);"))
         await db.execute(text("ALTER TABLE cameras ADD COLUMN IF NOT EXISTS codec VARCHAR(50) DEFAULT 'H.264';"))
+        await db.execute(text("ALTER TABLE cameras ADD COLUMN IF NOT EXISTS footfall_enabled BOOLEAN DEFAULT TRUE;"))
+        await db.execute(text("ALTER TABLE cameras ADD COLUMN IF NOT EXISTS heatmap_enabled BOOLEAN DEFAULT TRUE;"))
+        await db.execute(text("ALTER TABLE cameras ADD COLUMN IF NOT EXISTS analytics_config VARCHAR(250) DEFAULT '';"))
+        await db.execute(text("ALTER TABLE cameras ADD COLUMN IF NOT EXISTS inside_point VARCHAR(250) DEFAULT NULL;"))
         await db.commit()
         _columns_verified = True
     except Exception:
@@ -160,3 +164,109 @@ async def restart_camera(
     if not ok:
         raise HTTPException(status_code=404, detail="Camera not found or inactive")
     return {"success": True, "cam_id": cam_id}
+
+
+@router.get("/footfall-config/export")
+@router.get("/footfall-config")
+async def get_footfall_cameras_config(db: AsyncSession = Depends(get_db)):
+    """
+    Returns dynamic footfall_cameras.json configuration for CV DeepStream / Python pipeline.
+    Matches exact structure expected by CV team.
+    """
+    await _ensure_columns(db)
+    result = await db.execute(select(Camera).order_by(Camera.id))
+    cameras = result.scalars().all()
+
+    cameras_map = {}
+    for cam in cameras:
+        cameras_map[cam.cam_id] = {
+            "enabled": bool(cam.footfall_enabled if cam.footfall_enabled is not None else cam.active),
+            "uri": cam.rtsp_url or f"rtsp://65.1.214.31:8554/gj/{cam.cam_id}",
+            "analytics": cam.analytics_config or f"config_nvdsanalytics_{cam.cam_id}.txt",
+            "inside_point": cam.inside_point
+        }
+
+    return {
+        "backend_url": "http://65.2.158.148:8000",
+        "coord_width": 1920,
+        "coord_height": 1080,
+        "cameras": cameras_map
+    }
+
+
+@router.post("/footfall-config/import")
+async def import_footfall_cameras_config(
+    payload: Dict[str, Any] = Body(...),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Imports footfall_cameras.json structure to bulk update/onboard camera analytics settings.
+    """
+    await _ensure_columns(db)
+    cams_data = payload.get("cameras", {})
+    updated_cams = []
+
+    for cam_id, config in cams_data.items():
+        cam_id_clean = str(cam_id).strip()
+        result = await db.execute(
+            select(Camera).where(func.lower(Camera.cam_id) == cam_id_clean.lower())
+        )
+        cam = result.scalar_one_or_none()
+
+        enabled = bool(config.get("enabled", True))
+        uri = str(config.get("uri", f"rtsp://65.1.214.31:8554/gj/{cam_id_clean}"))
+        analytics = str(config.get("analytics", f"config_nvdsanalytics_{cam_id_clean}.txt"))
+        inside_pt = config.get("inside_point")
+
+        if cam:
+            cam.footfall_enabled = enabled
+            cam.rtsp_url = uri if uri else cam.rtsp_url
+            cam.analytics_config = analytics
+            cam.inside_point = str(inside_pt) if inside_pt else None
+            updated_cams.append(cam_id_clean)
+        else:
+            new_cam = Camera(
+                cam_id=cam_id_clean,
+                name=f"Camera {cam_id_clean.upper()}",
+                rtsp_url=uri,
+                footfall_enabled=enabled,
+                heatmap_enabled=True,
+                analytics_config=analytics,
+                inside_point=str(inside_pt) if inside_pt else None,
+                active=True
+            )
+            db.add(new_cam)
+            updated_cams.append(cam_id_clean)
+
+    await db.commit()
+    return {"status": "success", "imported_count": len(updated_cams), "cameras": updated_cams}
+
+
+@router.put("/{cam_id}/analytics-toggle")
+async def toggle_camera_analytics(
+    cam_id: str,
+    payload: Dict[str, Any] = Body(...),
+    db: AsyncSession = Depends(get_db)
+):
+    """Toggle Footfall or Heatmap Analytics per camera."""
+    await _ensure_columns(db)
+    result = await db.execute(
+        select(Camera).where(func.lower(Camera.cam_id) == cam_id.strip().lower())
+    )
+    cam = result.scalar_one_or_none()
+    if cam is None:
+        raise HTTPException(status_code=404, detail=f"Camera '{cam_id}' not found")
+
+    if "footfall_enabled" in payload:
+        cam.footfall_enabled = bool(payload["footfall_enabled"])
+    if "heatmap_enabled" in payload:
+        cam.heatmap_enabled = bool(payload["heatmap_enabled"])
+    if "analytics_config" in payload:
+        cam.analytics_config = str(payload["analytics_config"])
+    if "inside_point" in payload:
+        cam.inside_point = str(payload["inside_point"]) if payload["inside_point"] else None
+
+    await db.commit()
+    await db.refresh(cam)
+    return cam.to_dict()
+

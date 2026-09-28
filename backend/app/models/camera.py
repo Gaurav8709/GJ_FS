@@ -24,6 +24,10 @@ class Camera(Base):
     floor_id    = Column(Integer, ForeignKey("floors.id", ondelete="SET NULL"), nullable=True)
     location    = Column(String(200), default="")                   # human description
     active      = Column(Boolean, default=True)
+    footfall_enabled = Column(Boolean, default=True)
+    heatmap_enabled  = Column(Boolean, default=True)
+    analytics_config = Column(String(250), default="")
+    inside_point     = Column(String(250), nullable=True)
     created_at  = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at  = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
@@ -43,6 +47,10 @@ class Camera(Base):
             "floor_id": self.floor_id,
             "location": self.location or "",
             "active": self.active,
+            "footfall_enabled": self.footfall_enabled if self.footfall_enabled is not None else True,
+            "heatmap_enabled": self.heatmap_enabled if self.heatmap_enabled is not None else True,
+            "analytics_config": self.analytics_config or f"config_nvdsanalytics_{self.cam_id}.txt",
+            "inside_point": self.inside_point,
             "zone_count": len(self.zones) if self.zones else 0,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }

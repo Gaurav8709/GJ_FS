@@ -16,6 +16,10 @@ class CameraCreate(BaseModel):
     floor_id: Optional[int] = None
     location: str = ""
     active: bool = True
+    footfall_enabled: Optional[bool] = True
+    heatmap_enabled: Optional[bool] = True
+    analytics_config: Optional[str] = ""
+    inside_point: Optional[str] = None
 
 
 class CameraUpdate(BaseModel):
@@ -27,6 +31,10 @@ class CameraUpdate(BaseModel):
     floor_id: Optional[int] = None
     location: Optional[str] = None
     active: Optional[bool] = None
+    footfall_enabled: Optional[bool] = None
+    heatmap_enabled: Optional[bool] = None
+    analytics_config: Optional[str] = None
+    inside_point: Optional[str] = None
 
 
 class CameraResponse(BaseModel):
@@ -40,6 +48,10 @@ class CameraResponse(BaseModel):
     floor_id: Optional[int] = None
     location: str = ""
     active: bool
+    footfall_enabled: bool = True
+    heatmap_enabled: bool = True
+    analytics_config: Optional[str] = ""
+    inside_point: Optional[str] = None
     zone_count: int = 0
     created_at: Optional[str] = None
 
