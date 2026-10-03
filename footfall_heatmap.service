@@ -1,0 +1,33 @@
+[Unit]
+Description=Footfall Heatmap DeepStream Runtime
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+
+User=ubuntu
+Group=ubuntu
+
+WorkingDirectory=/home/ubuntu/footfall_heatmap
+
+ExecStart=/home/ubuntu/deepstream-venv/bin/python /home/ubuntu/footfall_heatmap/footfall_runtime.py
+
+Environment="HOME=/home/ubuntu"
+Environment="PATH=/home/ubuntu/deepstream-venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+# DeepStream / GStreamer
+Environment="GST_PLUGIN_PATH=/opt/nvidia/deepstream/deepstream/lib/gst-plugins"
+Environment="LD_LIBRARY_PATH=/opt/nvidia/deepstream/deepstream/lib:/usr/local/cuda/lib64:/usr/lib/x86_64-linux-gnu"
+
+# NVIDIA
+Environment="NVIDIA_VISIBLE_DEVICES=all"
+
+Restart=always
+RestartSec=5
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

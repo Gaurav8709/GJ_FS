@@ -1,0 +1,63 @@
+{
+  "backend_url": "http://65.2.158.148",
+  "coord_width": 1920,
+  "coord_height": 1080,
+  "cameras": {
+    "cam2": {
+      "enabled": false,
+      "uri": "rtsp://65.1.214.31:8554/gj/cam2",
+      "analytics": "config_nvdsanalytics_cam2.txt"
+    },
+    "cam4": {
+      "enabled": false,
+      "uri": "rtsp://65.1.214.31:8554/gj/cam4",
+      "analytics": "config_nvdsanalytics_cam4.txt"
+    },
+    "cam5": {
+      "enabled": true,
+      "uri": "rtsp://65.1.214.31:8554/gj/cam5",
+      "analytics": "config_nvdsanalytics_cam5.txt"
+    },
+    "cam5b": {
+      "enabled": false,
+      "uri": "rtsp://65.1.214.31:8554/gj/cam5b",
+      "analytics": "config_nvdsanalytics_cam5b.txt"
+    },
+    "cam6": {
+      "enabled": true,
+      "uri": "rtsp://65.1.214.31:8554/gj/cam6",
+      "analytics": "config_nvdsanalytics_cam6.txt"
+    },
+    "cam12": {
+      "enabled": true,
+      "uri": "rtsp://65.1.214.31:8554/gj/cam12",
+      "analytics": "config_nvdsanalytics_cam12.txt",
+      "inside_point": null
+    },
+    "cam13": {
+      "enabled": true,
+      "uri": "rtsp://65.1.214.31:8554/gj/cam13",
+      "analytics": "config_nvdsanalytics_cam13.txt"
+    },
+    "cam16": {
+      "enabled": true,
+      "uri": "rtsp://65.1.214.31:8554/gj/cam16",
+      "analytics": "config_nvdsanalytics_cam16.txt"
+    },
+    "cam20": {
+      "enabled": true,
+      "uri": "rtsp://65.1.214.31:8554/gj/cam20",
+      "analytics": "config_nvdsanalytics_cam20.txt"
+    },
+    "cam22": {
+      "enabled": true,
+      "uri": "rtsp://65.1.214.31:8554/gj/cam22",
+      "analytics": "config_nvdsanalytics_cam22.txt"
+    },
+    "cam26": {
+      "enabled": true,
+      "uri": "rtsp://65.1.214.31:8554/gj/cam26",
+      "analytics": "config_nvdsanalytics_cam26.txt"
+    }
+  }
+}

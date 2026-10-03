@@ -1,0 +1,12 @@
+[property]
+enable=1
+config-width=1920
+config-height=1080
+osd-mode=2
+display-font-size=20
+
+[roi-filtering-stream-0]
+enable=1
+roi-ROI-human-detection=1010;7;811;1073;1315;1075;1164;4;1003;3
+inverse-roi=0
+class-id=-1

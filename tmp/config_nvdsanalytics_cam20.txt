@@ -1,0 +1,12 @@
+[property]
+enable=1
+config-width=1920
+config-height=1080
+osd-mode=2
+display-font-size=20
+
+[roi-filtering-stream-0]
+enable=1
+roi-person_count_cam20=104;1074;392;713;325;709;275;432;384;368;397;488;601;500;791;295;942;298;946;328;1067;325;1177;464;1635;1077
+inverse-roi=0
+class-id=0

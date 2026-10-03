@@ -1,0 +1,64 @@
+[property]
+enable=1
+config-width=1920
+config-height=1080
+osd-mode=2
+display-font-size=20
+
+
+[roi-filtering-stream-1]
+# camera=cam5, stream=1
+enable=1
+roi-person_count_cam5=11;1072;508;483;592;493;738;319;911;322;909;354;936;368;1238;367;1494;1079;8;1076
+inverse-roi=0
+class-id=0
+
+[roi-filtering-stream-2]
+# camera=cam6, stream=2
+enable=1
+roi-person_count_cam6=20;1005;466;545;940;203;988;160;889;162;896;3;1;0;11;1008;25;1004
+inverse-roi=0
+class-id=0
+
+[roi-filtering-stream-3]
+# camera=cam12, stream=3
+enable=1
+roi-People_detection=38;1071;107;861;247;874;311;692;331;690;323;653;500;632;514;680;520;679;524;627;576;495;563;418;655;403;878;382;886;352;1158;349;1165;164;1187;158;1400;494;1463;588;1632;577;1746;564;1763;502;1716;444;1765;311;1795;314;1802;192;1812;10;1913;7;1918;1072
+inverse-roi=0
+class-id=0
+
+[line-crossing-stream-3]
+# camera=cam12, stream=3
+enable=1
+line-crossing-Entry=887;356;1148;346
+class-id=0
+extended=0
+mode=loose
+
+[direction-detection-stream-3]
+# camera=cam12, stream=3
+enable=1
+direction-Direction-line=1013;234;1020;483
+class-id=0
+
+[roi-filtering-stream-4]
+# camera=cam13, stream=4
+enable=1
+roi-person_count_cam13=539;1077;957;274;940;248;939;227;1259;212;1258;398;1280;408;1388;395;1393;316;1382;203;1504;195;1917;387;1913;1074
+inverse-roi=0
+class-id=0
+
+[roi-filtering-stream-5]
+# camera=cam16, stream=5
+enable=1
+roi-person_count_cam16=7;1076;7;863;295;392;689;302;699;371;858;353;1060;336;1067;378;1097;381;1118;424;1248;397;1247;337;1288;339;1296;318;1403;418;1916;976;1916;1079
+inverse-roi=0
+class-id=0
+
+[roi-filtering-stream-6]
+# camera=cam20, stream=6
+enable=1
+roi-person_count_cam20=104;1074;392;713;325;709;275;432;384;368;397;488;601;500;791;295;942;298;946;328;1067;325;1177;464;1635;1077
+inverse-roi=0
+class-id=0
+
