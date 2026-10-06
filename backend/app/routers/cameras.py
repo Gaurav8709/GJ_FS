@@ -187,7 +187,7 @@ async def get_footfall_cameras_config(db: AsyncSession = Depends(get_db)):
         }
 
     return {
-        "backend_url": "http://65.2.158.148:8000",
+        "backend_url": "http://65.2.158.148",
         "coord_width": 1920,
         "coord_height": 1080,
         "cameras": cameras_map

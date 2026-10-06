@@ -1,11 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getCameras, getFloors, connectAlertWS, getAlerts } from '../api/api.js';
+import { getCameras, getFloors } from '../api/api.js';
 import Sidebar from '../components/Sidebar.jsx';
 import StatsBar from '../components/StatsBar.jsx';
-import CameraGrid from '../components/CameraGrid.jsx';
-import LiveView from '../components/LiveView.jsx';
-import WorkerAssignment from '../components/WorkerAssignment.jsx';
-import AlertPanel from '../components/AlertPanel.jsx';
 import FootfallView from '../components/FootfallView.jsx';
 import FaceAlertsView from '../components/FaceAlertsView.jsx';
 import ForensicsView from '../components/ForensicsView.jsx';
@@ -17,13 +13,11 @@ export default function Dashboard({ user, onLogout }) {
   /* ---- state ---- */
   const [cameras, setCameras] = useState([]);
   const [floors, setFloors] = useState([]);
-  const [alerts, setAlerts] = useState([]);
-  const [activeView, setActiveView] = useState('grid');   // grid | live | workers | alerts | footfall | face-alerts | forensics | heatmaps | camera-onboarding
+  const [activeView, setActiveView] = useState('footfall');   // footfall | camera-onboarding | face-alerts | forensics | heatmaps
   const [selectedCam, setSelectedCam] = useState(null);
   const [filterFloor, setFilterFloor] = useState(null);
   const [filterSection, setFilterSection] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [alertCount, setAlertCount] = useState(0);
 
   const refreshCameras = useCallback(() => {
     getCameras().then(setCameras).catch(() => {});
@@ -33,11 +27,6 @@ export default function Dashboard({ user, onLogout }) {
   useEffect(() => {
     refreshCameras();
     getFloors().then(setFloors).catch(() => {});
-    getAlerts(50).then((a) => {
-      const list = Array.isArray(a) ? a : a.alerts || [];
-      setAlerts(list);
-      setAlertCount(list.filter((x) => !x.acknowledged).length);
-    }).catch(() => {});
   }, [refreshCameras]);
 
   /* ---- poll camera status ---- */
@@ -64,79 +53,41 @@ export default function Dashboard({ user, onLogout }) {
     });
   }, []);
 
-  /* ---- WebSocket alerts ---- */
-  useEffect(() => {
-    const ws = connectAlertWS((msg) => {
-      setAlerts((prev) => [msg, ...prev].slice(0, 200));
-      if (!msg.acknowledged) setAlertCount((c) => c + 1);
-    });
-    return () => ws.close();
-  }, []);
-
   /* ---- handlers ---- */
-  const openLiveView = useCallback((cam) => {
-    setSelectedCam(cam);
-    setActiveView('live');
-  }, []);
-
-  const closeLiveView = useCallback(() => {
-    setSelectedCam(null);
-    setActiveView('grid');
-  }, []);
-
   const handleNav = useCallback((view) => {
     setActiveView(view);
-    if (view !== 'live') setSelectedCam(null);
+    setSelectedCam(null);
   }, []);
 
   const handleFloorFilter = useCallback((floorId) => {
     setFilterFloor(floorId);
     setFilterSection(null);
-    setActiveView('grid');
   }, []);
 
   const handleSectionFilter = useCallback((sectionId) => {
     setFilterSection(sectionId);
-    setActiveView('grid');
   }, []);
 
   const handleCameraClick = useCallback((camId) => {
     const cam = cameras.find((c) => c.id === camId || c.camera_id === camId);
-    if (cam) openLiveView(cam);
-  }, [cameras, openLiveView]);
-
-  /* ---- filtered cameras ---- */
-  const filteredCameras = cameras.filter((c) => {
-    if (filterFloor && c.floor_id !== filterFloor) return false;
-    if (filterSection && c.section_id !== filterSection) return false;
-    return true;
-  });
+    if (cam) setSelectedCam(cam);
+  }, [cameras]);
 
   /* ---- render content ---- */
   const renderContent = () => {
     switch (activeView) {
       case 'camera-onboarding':
         return <CameraOnboardingView cameras={cameras} floors={floors} onRefresh={refreshCameras} />;
-      case 'live':
-        return selectedCam ? (
-          <LiveView camera={selectedCam} onBack={closeLiveView} />
-        ) : (
-          <CameraGrid cameras={filteredCameras} onCameraClick={openLiveView} />
-        );
       case 'footfall':
-        return <FootfallView cameras={cameras} />;
+        return <FootfallView cameras={cameras} filterFloor={filterFloor} filterSection={filterSection} />;
       case 'face-alerts':
-        return <FaceAlertsView cameras={cameras} />;
+        return <FaceAlertsView cameras={cameras} filterFloor={filterFloor} filterSection={filterSection} />;
       case 'forensics':
         return <ForensicsView cameras={cameras} />;
       case 'heatmaps':
-        return <HeatmapView cameras={cameras} />;
-      case 'workers':
-        return <WorkerAssignment />;
-      case 'alerts':
-        return <AlertPanel alerts={alerts} setAlerts={setAlerts} setAlertCount={setAlertCount} fullPage />;
+        return <HeatmapView cameras={cameras} filterFloor={filterFloor} filterSection={filterSection} />;
       default:
-        return <CameraGrid cameras={filteredCameras} onCameraClick={openLiveView} />;
+        return <FootfallView cameras={cameras} filterFloor={filterFloor} filterSection={filterSection} />;
     }
   };
 
@@ -166,22 +117,9 @@ export default function Dashboard({ user, onLogout }) {
           </div>
         </div>
 
-        <StatsBar cameras={cameras} alerts={alerts} />
+        <StatsBar cameras={cameras} />
 
         <div className="header-right">
-          {/* Alert bell */}
-          <button
-            className="header-icon-btn"
-            onClick={() => handleNav('alerts')}
-            title="Alerts"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-            </svg>
-            {alertCount > 0 && <span className="alert-badge-count">{alertCount}</span>}
-          </button>
-
           {/* User menu */}
           <div className="header-user">
             <div className="header-avatar">
@@ -212,7 +150,6 @@ export default function Dashboard({ user, onLogout }) {
           onFloorFilter={handleFloorFilter}
           onSectionFilter={handleSectionFilter}
           onCameraClick={handleCameraClick}
-          alerts={alerts}
         />
         <main className={`dashboard-main ${sidebarOpen ? '' : 'sidebar-collapsed'}`}>
           {renderContent()}

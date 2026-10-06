@@ -51,7 +51,7 @@ export default function FaceAlertsView({ cameras }) {
     setSimulating(true);
     const camId = targetCamId || (cameras && cameras.length > 0 ? cameras[0].cam_id : 'cam06');
     const camObj = (cameras || []).find((c) => c.cam_id === camId);
-    const locationName = camObj ? `${camObj.name || camId} (${camObj.section_name || 'Showroom'})` : `Camera ${camId.upper()}`;
+    const locationName = camObj ? `${camObj.name || camId} (${camObj.section_name || 'Showroom'})` : `Camera ${camId ? camId.toUpperCase() : ''}`;
 
     const payload = {
       emp_id: emp.emp_id,

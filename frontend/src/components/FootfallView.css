@@ -25,6 +25,7 @@
   display: flex;
   gap: 12px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .cam-select {
@@ -34,6 +35,61 @@
   padding: 8px 14px;
   border-radius: var(--radius-md);
   font-size: 0.85rem;
+}
+
+.duration-filter-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+}
+
+.duration-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.duration-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.5px;
+}
+
+.duration-input {
+  background: #0f172a;
+  border: 1px solid #334155;
+  color: #e2e8f0;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  outline: none;
+}
+
+.duration-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.clear-duration-btn {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clear-duration-btn:hover {
+  background: rgba(239, 68, 68, 0.3);
+  color: #ffffff;
 }
 
 .sim-buttons {
@@ -498,4 +554,179 @@ input:checked + .slider:before {
   margin-bottom: 12px;
   font-weight: 600;
 }
+
+/* Line Chart Card (Entries vs Exits) */
+.line-chart-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.line-chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.line-chart-header h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.chart-sub {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.line-chart-legend {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-item.green { color: #10b981; }
+.legend-item.red { color: #ef4444; }
+
+.legend-line {
+  display: inline-block;
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+.legend-line.green { background: #10b981; }
+.legend-line.red { background: #ef4444; }
+
+.svg-responsive-container {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.line-chart-svg {
+  width: 100%;
+  height: auto;
+  min-width: 500px;
+  display: block;
+}
+
+.chart-point-group circle {
+  transition: r 0.2s ease, fill 0.2s ease;
+  cursor: pointer;
+}
+
+.chart-point-group:hover circle {
+  r: 7;
+}
+
+/* Donut / Pie Chart Box (Age Groups) */
+.donut-chart-box {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.donut-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.donut-section-header h4 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.total-age-tag {
+  font-size: 0.72rem;
+  background: rgba(139, 92, 246, 0.15);
+  color: #c084fc;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.donut-body {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.donut-svg-wrapper {
+  flex-shrink: 0;
+}
+
+.donut-svg {
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
+}
+
+.donut-legend-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.legend-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.78rem;
+  padding: 3px 0;
+}
+
+.legend-row.empty {
+  opacity: 0.4;
+}
+
+.legend-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.legend-name {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.legend-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-val {
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.legend-pct {
+  font-weight: 600;
+  font-size: 0.72rem;
+}
+
 

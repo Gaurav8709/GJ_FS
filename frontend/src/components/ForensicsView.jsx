@@ -154,18 +154,18 @@ export default function ForensicsView({ cameras }) {
           </div>
           
           <form onSubmit={handleAssign} className="upload-form">
-            <div className="form-group">
-              <label>Employee Name *</label>
-              <input 
-                type="text" 
-                placeholder="e.g. Rahul Sharma" 
-                value={empName} 
-                onChange={(e) => setEmpName(e.target.value)} 
-                required 
-              />
-            </div>
+            <div className="form-fields-grid">
+              <div className="form-group">
+                <label>Employee Name *</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. Rahul Sharma" 
+                  value={empName} 
+                  onChange={(e) => setEmpName(e.target.value)} 
+                  required 
+                />
+              </div>
 
-            <div className="form-row">
               <div className="form-group">
                 <label>Employee ID *</label>
                 <input 
@@ -187,9 +187,7 @@ export default function ForensicsView({ cameras }) {
                   required 
                 />
               </div>
-            </div>
 
-            <div className="form-row">
               <div className="form-group">
                 <label>Work Shift</label>
                 <select value={shift} onChange={(e) => setShift(e.target.value)} className="shift-select">
@@ -210,48 +208,50 @@ export default function ForensicsView({ cameras }) {
               </div>
             </div>
 
-            <div className="form-group">
-              <label>
-                {mediaType === 'video' ? 'Facial Training Video (1 - 5 Mins)' : 'Employee Profile Picture / Photo'} *
-              </label>
-              <div className="file-input-wrapper">
-                <input 
-                  type="file" 
-                  accept={mediaType === 'video' ? 'video/*' : 'image/*'} 
-                  onChange={handleFileChange} 
-                  required 
-                />
-                <div className="file-drop-zone">
-                  {file ? (
-                    <div className="file-selected-info">
-                      <span className="file-icon">{mediaType === 'video' ? '🎥' : '📸'}</span>
-                      <div className="file-details">
-                        <span className="file-name">{file.name}</span>
-                        <span className="file-size">{(file.size / (1024 * 1024)).toFixed(2)} MB</span>
+            <div className="form-bottom-row">
+              <div className="form-group file-drop-group">
+                <label>
+                  {mediaType === 'video' ? 'Facial Training Video (1 - 5 Mins)' : 'Employee Profile Picture / Photo'} *
+                </label>
+                <div className="file-input-wrapper">
+                  <input 
+                    type="file" 
+                    accept={mediaType === 'video' ? 'video/*' : 'image/*'} 
+                    onChange={handleFileChange} 
+                    required 
+                  />
+                  <div className="file-drop-zone">
+                    {file ? (
+                      <div className="file-selected-info">
+                        <span className="file-icon">{mediaType === 'video' ? '🎥' : '📸'}</span>
+                        <div className="file-details">
+                          <span className="file-name">{file.name}</span>
+                          <span className="file-size">{(file.size / (1024 * 1024)).toFixed(2)} MB</span>
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="file-placeholder">
-                      <span className="upload-icon">☁️</span>
-                      <span>Click or Drag &amp; Drop {mediaType === 'video' ? 'Video' : 'Photo'} File</span>
-                      <span className="file-help">
-                        {mediaType === 'video' ? 'MP4, MOV, WEBM (1-5 min max)' : 'JPG, PNG, WEBP high resolution'}
-                      </span>
-                    </div>
-                  )}
+                    ) : (
+                      <div className="file-placeholder">
+                        <span className="upload-icon">☁️</span>
+                        <span>Click or Drag &amp; Drop {mediaType === 'video' ? 'Video' : 'Photo'} File</span>
+                        <span className="file-help">
+                          {mediaType === 'video' ? 'MP4, MOV, WEBM (1-5 min max)' : 'JPG, PNG, WEBP high resolution'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <button type="submit" className="upload-submit-btn" disabled={uploading}>
-              {uploading ? (
-                <>
-                  <span className="spinner"></span> Uploading to S3 &amp; RDS...
-                </>
-              ) : (
-                <>🚀 Upload to AWS S3 &amp; Assign Employee</>
-              )}
-            </button>
+              <button type="submit" className="upload-submit-btn" disabled={uploading}>
+                {uploading ? (
+                  <>
+                    <span className="spinner"></span> Uploading to S3 &amp; RDS...
+                  </>
+                ) : (
+                  <>🚀 Upload to AWS S3 &amp; Assign Employee</>
+                )}
+              </button>
+            </div>
           </form>
         </div>
 

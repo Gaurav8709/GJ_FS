@@ -9,6 +9,7 @@ export default defineConfig({
       '/api': 'http://localhost:8000',
       '/video': 'http://localhost:8000',
       '/snapshot': 'http://localhost:8000',
+      '/static': 'http://localhost:8000',
       '/ws': {
         target: 'ws://localhost:8000',
         ws: true,

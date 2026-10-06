@@ -5,7 +5,7 @@ Handles real-time footfall updates (+1/-1, gender & age breakdowns) and timestam
 
 import datetime
 from typing import Optional, List, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
@@ -76,25 +76,59 @@ async def receive_footfall_update(
 
 @router.get("/stats")
 async def get_footfall_stats(
-    cam_id: Optional[str] = None,
-    limit: int = 50,
+    cam_id: Optional[str] = Query(None, description="Camera ID filter"),
+    start_date: Optional[str] = Query(None, description="Start Date (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End Date (YYYY-MM-DD)"),
+    start_time: Optional[str] = Query(None, description="Start Time (HH:MM)"),
+    end_time: Optional[str] = Query(None, description="End Time (HH:MM)"),
+    limit: int = Query(50, ge=1, le=500),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Returns aggregated footfall statistics, timestamped history, gender & age distributions for bar graphs.
+    Returns aggregated footfall statistics, timestamped history, gender & age distributions 
+    filtered by date range, time duration, or specific camera stream.
     """
-    query = select(FootfallRecord).order_by(FootfallRecord.timestamp.asc())
+    default_start = datetime.datetime(2026, 9, 28, 0, 0, 0)
+    start_dt = default_start
+    end_dt = None
+
+    if start_date:
+        try:
+            s_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
+            s_time = datetime.time(0, 0, 0)
+            if start_time:
+                p = start_time.split(":")
+                s_time = datetime.time(int(p[0]), int(p[1]))
+            start_dt = datetime.datetime.combine(s_date, s_time)
+        except Exception:
+            pass
+
+    if end_date:
+        try:
+            e_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()
+            e_time = datetime.time(23, 59, 59)
+            if end_time:
+                p = end_time.split(":")
+                e_time = datetime.time(int(p[0]), int(p[1]))
+            end_dt = datetime.datetime.combine(e_date, e_time)
+        except Exception:
+            pass
+
+    query = select(FootfallRecord).where(FootfallRecord.timestamp >= start_dt)
+    if end_dt:
+        query = query.where(FootfallRecord.timestamp <= end_dt)
+
     if cam_id:
         query = query.where(FootfallRecord.cam_id == cam_id)
 
-    result = await db.execute(query.limit(limit))
+    result = await db.execute(query.order_by(FootfallRecord.timestamp.asc()))
     records = result.scalars().all()
 
     total_entries = sum(r.entries for r in records)
     total_exits = sum(r.exits for r in records)
     net_current = max(0, total_entries - total_exits)
-    total_male = sum(r.male_count for r in records)
-    total_female = sum(r.female_count for r in records)
+    total_male = sum(r.male_count or 0 for r in records)
+    total_female = sum(r.female_count or 0 for r in records)
 
     age_totals = {
         "0_9": sum((r.age_0_9 or 0) for r in records),
@@ -105,11 +139,11 @@ async def get_footfall_stats(
         "50_plus": sum((r.age_50_plus or 0) for r in records),
     }
 
-
-    # Format timestamp series for bar graphs
+    # Format timestamp series for bar graphs (latest N time points)
+    recent_records = records[-limit:] if len(records) > limit else records
     timestamps = []
-    for r in records:
-        ts_label = r.timestamp.strftime("%H:%M:%S") if r.timestamp else "N/A"
+    for r in recent_records:
+        ts_label = r.timestamp.strftime("%Y-%m-%d %H:%M:%S") if r.timestamp else "N/A"
         timestamps.append({
             "timestamp": ts_label,
             "entries": r.entries,
@@ -128,5 +162,7 @@ async def get_footfall_stats(
         },
         "age_breakdown": age_totals,
         "time_series": timestamps,
-        "raw_records": [r.to_dict() for r in records[-10:]]
+        "raw_records": [r.to_dict() for r in recent_records[-10:]]
     }
+
+

@@ -13,6 +13,13 @@ export const getToken  = () => localStorage.getItem('gj_token');
 export const setToken  = (t) => localStorage.setItem('gj_token', t);
 export const clearToken = () => localStorage.removeItem('gj_token');
 
+export const getImageUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  const targetBase = BASE || 'http://65.2.158.148';
+  return `${targetBase.replace(/\/$/, '')}${url.startsWith('/') ? '' : '/'}${url}`;
+};
+
 /* ---------- Authenticated fetch wrapper ---------- */
 export async function apiFetch(path, opts = {}) {
   const token = getToken();
@@ -117,8 +124,16 @@ export function connectAlertWS(onMessage) {
   return ws;
 }
 
-/* ---------- Footfall ---------- */
-export const getFootfallStats = (camId) => apiFetch(`/api/footfall/stats${camId ? `?cam_id=${camId}` : ''}`);
+export const getFootfallStats = (camId, startDate, endDate, startTime, endTime) => {
+  const params = new URLSearchParams();
+  if (camId) params.append('cam_id', camId);
+  if (startDate) params.append('start_date', startDate);
+  if (endDate) params.append('end_date', endDate);
+  if (startTime) params.append('start_time', startTime);
+  if (endTime) params.append('end_time', endTime);
+  const q = params.toString();
+  return apiFetch(`/api/footfall/stats${q ? `?${q}` : ''}`);
+};
 export const updateFootfall = (payload) => apiFetch('/api/footfall/listener-update', { method: 'POST', body: JSON.stringify(payload) });
 
 /* ---------- Face Alerts & Employee Monitoring ---------- */
@@ -160,8 +175,10 @@ export const deleteForensicClip = (id) =>
 
 
 /* ---------- Heatmaps ---------- */
-export const getLatestHeatmaps = () => apiFetch('/api/heatmaps/latest');
-export const getHeatmapForCamera = (camId) => apiFetch(`/api/heatmaps/camera/${camId}`);
+export const getLatestHeatmaps = (date) =>
+  apiFetch(`/api/heatmaps/latest${date ? `?date=${date}` : ''}`);
+export const getHeatmapForCamera = (camId, limit = 50, date) =>
+  apiFetch(`/api/heatmaps/camera/${camId}?limit=${limit}${date ? `&date=${date}` : ''}`);
 export async function uploadHeatmap(formData) {
   const token = getToken();
   const res = await fetch(`${BASE}/api/heatmaps/upload`, {
