@@ -3,19 +3,21 @@
 =============================================================================
 GJ-Fashion AI Smart Showroom — Computer Vision (CV) Employee Sync & Alert Listener
 =============================================================================
-This standalone Python script provides complete 2-way integration for the CV Team:
+This standalone Python script syncs employee media clips (Videos/Photos) 
+directly with the CV Team's pipeline:
 
 1. AUTOMATED EMPLOYEE ADDITION:
-   Polls Backend API for new assigned employees, downloads training media from 
-   AWS S3, and extracts/indexes 512-D facial embeddings.
+   Polls Backend API for new assigned employees, downloads training video/photo 
+   directly from AWS S3, and saves it named EXACTLY as `{emp_id}.ext` (e.g. EMP-105.mp4).
+   Does NOT create extra .npy or .json files as requested by CV team.
 
 2. AUTOMATED EMPLOYEE DELETION:
-   Monitors deletion events from the Web Dashboard. If an employee (emp_id) is 
-   deleted by the admin, this script automatically evicts their facial embeddings 
-   from the CV vector store.
+   Monitors deletion events from the Web Dashboard. When an employee is deleted 
+   by admin, this script automatically deletes their local video/photo file ({emp_id}.ext) 
+   from disk.
 
 3. LIVE FACE DETECTION ALERTS:
-   Includes helper function `send_detection_alert()` to trigger real-time WebSocket 
+   Includes helper function `send_face_detection_alert()` to trigger real-time WebSocket 
    alerts on the Web Dashboard whenever a camera detects a registered employee.
 
 Endpoints:
@@ -30,13 +32,13 @@ Usage:
 
 import os
 import sys
+import glob
 import time
 import json
 import logging
 import argparse
 import urllib.request
 import urllib.error
-import numpy as np
 from datetime import datetime
 
 # Setup Logging
@@ -47,10 +49,10 @@ logging.basicConfig(
 logger = logging.getLogger("cv_employee_sync")
 
 DEFAULT_API_BASE = os.getenv("API_BASE_URL", "http://65.2.158.148").rstrip("/")
-EMBEDDINGS_DIR = os.path.join(os.path.dirname(__file__), "cv_embeddings")
-CACHE_INDEX_FILE = os.path.join(EMBEDDINGS_DIR, "active_employees_index.json")
+MEDIA_DIR = os.path.join(os.path.dirname(__file__), "cv_embeddings")
+INDEX_FILE = os.path.join(MEDIA_DIR, ".active_sync_index.json")
 
-os.makedirs(EMBEDDINGS_DIR, exist_ok=True)
+os.makedirs(MEDIA_DIR, exist_ok=True)
 
 
 def get_api_candidates(base_url: str = None) -> list:
@@ -72,20 +74,20 @@ def get_api_candidates(base_url: str = None) -> list:
     return candidates
 
 
-def load_local_cache_index():
-    """Load local CV employee cache index: { emp_id: { clip_id, emp_name, role, shift, s3_url, updated_at } }"""
-    if os.path.exists(CACHE_INDEX_FILE):
+def load_sync_index():
+    """Load local employee sync index tracking downloaded media files."""
+    if os.path.exists(INDEX_FILE):
         try:
-            with open(CACHE_INDEX_FILE, "r") as f:
+            with open(INDEX_FILE, "r") as f:
                 return json.load(f)
         except Exception as e:
-            logger.warning(f"Could not read local cache index: {e}")
+            logger.warning(f"Could not read sync index: {e}")
     return {}
 
 
-def save_local_cache_index(index_data):
-    """Save active CV employee cache index to disk."""
-    with open(CACHE_INDEX_FILE, "w") as f:
+def save_sync_index(index_data):
+    """Save active employee sync index to disk."""
+    with open(INDEX_FILE, "w") as f:
         json.dump(index_data, f, indent=2)
 
 
@@ -108,40 +110,25 @@ def fetch_assigned_employees_from_api(api_base_url: str = None):
     return [], candidates[0]
 
 
-def download_media_asset(file_url, dest_filename, active_api_base):
-    """Download facial training video/image from AWS S3 or server static path."""
+def download_employee_media(file_url, dest_filename, active_api_base):
+    """Download video/photo asset from AWS S3 or server static path."""
     if file_url.startswith("/"):
         full_url = f"{active_api_base}{file_url}"
     else:
         full_url = file_url
 
-    dest_path = os.path.join(EMBEDDINGS_DIR, dest_filename)
+    dest_path = os.path.join(MEDIA_DIR, dest_filename)
     logger.info(f"📥 Downloading S3 Media Asset: {full_url}")
 
     try:
         req = urllib.request.Request(full_url, headers={"User-Agent": "CV-Sync-Worker/1.0"})
         with urllib.request.urlopen(req, timeout=15) as response, open(dest_path, "wb") as out_file:
             out_file.write(response.read())
-        logger.info(f"✅ Downloaded & Saved: {dest_path}")
+        logger.info(f"✅ Video/Photo Saved: {dest_path}")
         return dest_path
     except Exception as e:
         logger.error(f"❌ Failed to download asset: {e}")
         return None
-
-
-def generate_512d_facial_embedding(media_path, emp_id, emp_name):
-    """
-    Facial Feature Extractor.
-    CV Team: Replace this function body with your InsightFace / FaceNet / DeepStream model call.
-    Returns: 512-dimensional float32 vector.
-    """
-    logger.info(f"🧠 Computing 512-D Facial Vector for {emp_name} ({emp_id}) using InsightFace/FaceNet...")
-    
-    # Deterministic dummy vector generator based on emp_id for demonstration
-    np.random.seed(abs(hash(emp_id)) % (2**32))
-    vec = np.random.randn(512).astype(np.float32)
-    vec /= np.linalg.norm(vec)
-    return vec.tolist()
 
 
 def send_face_detection_alert(emp_id, emp_name, cam_id="cam5", confidence=0.95, snapshot_url="", api_base_url=None):
@@ -184,10 +171,10 @@ def send_face_detection_alert(emp_id, emp_name, cam_id="cam5", confidence=0.95, 
 def sync_employees_with_cv_pipeline(api_base_url=None):
     """
     Core Synchronization Function:
-    1. Detects new employees -> Downloads media -> Generates & indexes 512-D facial vectors.
-    2. Detects deleted employees -> Evicts vectors & deletes local embeddings.
+    1. ADDITIONS: Downloads video/photo and names it EXACTLY {emp_id}.ext (e.g. EMP-105.mp4).
+    2. DELETIONS: Deletes local video/photo file ({emp_id}.ext) when deleted from Web Dashboard.
     """
-    local_cache = load_local_cache_index()
+    sync_index = load_sync_index()
     api_records, active_api_base = fetch_assigned_employees_from_api(api_base_url)
 
     # Build active map from API response
@@ -197,16 +184,15 @@ def sync_employees_with_cv_pipeline(api_base_url=None):
         api_active_map[e_id] = r
 
     # -------------------------------------------------------------------------
-    # PART 1: PROCESS NEW / ADDED EMPLOYEES
+    # PART 1: PROCESS NEW / ADDED EMPLOYEES (Save Media as {emp_id}.ext)
     # -------------------------------------------------------------------------
     added_count = 0
     for emp_id, record in api_active_map.items():
-        if emp_id not in local_cache:
+        if emp_id not in sync_index:
             emp_name = record.get("emp_name") or record.get("title") or "Unnamed Employee"
             role = record.get("role", "Sales Executive")
             shift = record.get("shift", "Morning")
             file_url = record.get("file_url") or ""
-            clip_id = record.get("id")
 
             logger.info("=" * 70)
             logger.info(f"✨ NEW EMPLOYEE ADDITION DETECTED FROM DASHBOARD:")
@@ -218,83 +204,81 @@ def sync_employees_with_cv_pipeline(api_base_url=None):
             logger.info("=" * 70)
 
             if file_url:
-                ext = os.path.splitext(file_url)[1] or ".png"
-                local_media_name = f"{emp_id}_{clip_id}{ext}"
-                local_media_path = download_media_asset(file_url, local_media_name, active_api_base)
+                # Extract original extension (.mp4, .mov, .jpg, .png, etc.)
+                ext = os.path.splitext(file_url)[1]
+                if not ext or len(ext) > 5:
+                    ext = ".mp4" if "video" in str(record.get("metadata_json")) else ".jpg"
+
+                # Named EXACTLY as {emp_id}.ext (e.g. EMP-105.mp4 or EMP-105.jpg)
+                media_filename = f"{emp_id}{ext}"
+                local_media_path = download_employee_media(file_url, media_filename, active_api_base)
 
                 if local_media_path:
-                    # Generate 512-d facial embedding vector
-                    vector = generate_512d_facial_embedding(local_media_path, emp_id, emp_name)
-
-                    # Save embedding vector (.npy) and JSON metadata
-                    vector_path = os.path.join(EMBEDDINGS_DIR, f"{emp_id}_vector.npy")
-                    np.save(vector_path, np.array(vector, dtype=np.float32))
-
-                    meta_payload = {
+                    sync_index[emp_id] = {
                         "emp_id": emp_id,
                         "emp_name": emp_name,
                         "role": role,
                         "shift": shift,
                         "s3_url": file_url,
-                        "local_media": local_media_path,
-                        "vector_file": vector_path,
-                        "dimension": len(vector),
-                        "indexed_at": datetime.now().isoformat()
+                        "local_file": local_media_path,
+                        "filename": media_filename,
+                        "synced_at": datetime.now().isoformat()
                     }
-                    meta_path = os.path.join(EMBEDDINGS_DIR, f"{emp_id}_meta.json")
-                    with open(meta_path, "w") as f:
-                        json.dump(meta_payload, f, indent=2)
-
-                    # Update local cache index
-                    local_cache[emp_id] = meta_payload
                     added_count += 1
-                    logger.info(f"✅ Successfully indexed facial embeddings for {emp_name} ({emp_id})")
+                    logger.info(f"✅ Saved Employee Media File: {media_filename}")
 
     # -------------------------------------------------------------------------
-    # PART 2: PROCESS DELETED / REMOVED EMPLOYEES
+    # PART 2: PROCESS DELETED EMPLOYEES (Delete local video/photo file)
     # -------------------------------------------------------------------------
     deleted_count = 0
-    cached_emp_ids = list(local_cache.keys())
-    
-    for emp_id in cached_emp_ids:
+    synced_emp_ids = list(sync_index.keys())
+
+    for emp_id in synced_emp_ids:
         if emp_id not in api_active_map:
             logger.info("=" * 70)
             logger.info(f"🗑️ EMPLOYEE DELETION EVENT DETECTED FROM DASHBOARD:")
             logger.info(f" - Employee ID : {emp_id}")
-            logger.info(f" - Action      : EVICTING FACIAL EMBEDDINGS FROM CV PIPELINE")
+            logger.info(f" - Action      : DELETING LOCAL VIDEO/PHOTO MEDIA FILE")
             logger.info("=" * 70)
 
-            # Clean up local embedding files
-            vec_file = os.path.join(EMBEDDINGS_DIR, f"{emp_id}_vector.npy")
-            meta_file = os.path.join(EMBEDDINGS_DIR, f"{emp_id}_meta.json")
+            # 1. Delete file recorded in index
+            emp_info = sync_index.get(emp_id, {})
+            saved_file = emp_info.get("local_file")
+            if saved_file and os.path.exists(saved_file):
+                try:
+                    os.remove(saved_file)
+                    logger.info(f"🗑️ Removed Media File: {saved_file}")
+                except Exception as e:
+                    logger.error(f"Error removing file {saved_file}: {e}")
 
-            if os.path.exists(vec_file):
-                try: os.remove(vec_file)
-                except Exception: pass
+            # 2. Pattern cleanup for any files matching emp_id.* (e.g. EMP-105.mp4, EMP-105.jpg)
+            matching_files = glob.glob(os.path.join(MEDIA_DIR, f"{emp_id}.*"))
+            for match in matching_files:
+                if os.path.exists(match):
+                    try:
+                        os.remove(match)
+                        logger.info(f"🗑️ Pattern Removed File: {match}")
+                    except Exception:
+                        pass
 
-            if os.path.exists(meta_file):
-                try: os.remove(meta_file)
-                except Exception: pass
-
-            # Delete from cache
-            del local_cache[emp_id]
+            # 3. Evict from local index
+            del sync_index[emp_id]
             deleted_count += 1
-            logger.info(f"❌ Evicted facial embeddings for deleted employee: {emp_id}")
+            logger.info(f"❌ Deleted local video/photo asset for Employee ID: {emp_id}")
 
-    # Save updated cache index if changes occurred
+    # Save updated sync index if changes occurred
     if added_count > 0 or deleted_count > 0:
-        save_local_cache_index(local_cache)
-        logger.info(f"🔄 CV Employee Index Updated: {added_count} added, {deleted_count} deleted. Total Active: {len(local_cache)}")
-    else:
-        logger.debug(f"CV Employee Index in sync. Total Active Employees: {len(local_cache)}")
+        save_sync_index(sync_index)
+        logger.info(f"🔄 CV Employee Media Directory Synced: {added_count} downloaded, {deleted_count} deleted. Total Active: {len(sync_index)}")
 
-    return local_cache
+    return sync_index
 
 
 def run_cv_listener_loop(poll=True, interval=5, api_base_url=None):
     """Continuous listening loop for CV team."""
-    logger.info("Starting Computer Vision Employee Sync Listener Loop...")
+    logger.info("Starting Computer Vision Employee Media Sync Listener Loop...")
     logger.info(f"Target Backend API: {api_base_url or DEFAULT_API_BASE}")
+    logger.info(f"Media Storage Directory: {MEDIA_DIR}")
     logger.info(f"Polling Interval: {interval} seconds")
 
     while True:
@@ -310,7 +294,7 @@ def run_cv_listener_loop(poll=True, interval=5, api_base_url=None):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="GJ-Fashion Computer Vision Employee Sync & Alert Listener")
+    parser = argparse.ArgumentParser(description="GJ-Fashion Computer Vision Employee Media Sync & Alert Listener")
     parser.add_argument("--poll", action="store_true", default=True, help="Run continuous sync listener loop")
     parser.add_argument("--once", action="store_true", help="Run sync once and exit")
     parser.add_argument("--interval", type=int, default=5, help="Polling interval in seconds")
