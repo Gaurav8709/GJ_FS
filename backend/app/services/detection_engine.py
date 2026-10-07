@@ -48,8 +48,8 @@ class DetectionEngine:
 
     def load_model(self):
         """
-        Lazy-load the YOLO model.
-        Called once at startup or on first inference.
+        Lazy-load the YOLO model if available.
+        If ultralytics is not installed, runs cleanly in CV Listener mode.
         """
         if self._model is not None:
             return
@@ -58,9 +58,12 @@ class DetectionEngine:
             logger.info(f"Loading YOLO model: {settings.YOLO_MODEL_PATH}")
             self._model = YOLO(settings.YOLO_MODEL_PATH)
             logger.info("YOLO model loaded successfully")
+        except ImportError:
+            logger.info("Ultralytics package not installed. Backend running in CV Listener Mode.")
+            self._model = False
         except Exception as e:
-            logger.error(f"Failed to load YOLO model: {e}")
-            raise
+            logger.warning(f"Could not load YOLO model ({e}). Backend running in CV Listener Mode.")
+            self._model = False
 
     @property
     def model(self):
@@ -83,6 +86,9 @@ class DetectionEngine:
         Returns:
             List of Detection objects for class 0 (person) only.
         """
+        if not self.model:
+            return []
+
         conf = confidence or settings.YOLO_CONFIDENCE
         h, w = frame.shape[:2]
         frame_area = h * w
@@ -138,6 +144,9 @@ class DetectionEngine:
         """
         if not frames:
             return []
+
+        if not self.model:
+            return [[] for _ in range(len(frames))]
 
         conf = confidence or settings.YOLO_CONFIDENCE
         batch_detections: List[List[Detection]] = [[] for _ in range(len(frames))]
