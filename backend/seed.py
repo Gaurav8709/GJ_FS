@@ -113,14 +113,7 @@ async def seed_data():
         access_entries = [CameraAccess(user_id=admin.id, camera_id=f"cam{i}", granted_by="system") for i in range(1, 28)]
         session.add_all(access_entries)
 
-        # 5. Add Sample Employees for Face Alert
-        logger.info("Creating sample employee records...")
-        emp1 = EmployeeFace(emp_id="EMP-101", emp_name="Rahul Sharma", department="Menswear", role="Senior Sales Executive", face_url="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150")
-        emp2 = EmployeeFace(emp_id="EMP-102", emp_name="Priya Patel", department="Womenswear", role="Floor Manager", face_url="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150")
-        emp3 = EmployeeFace(emp_id="EMP-103", emp_name="Amit Verma", department="Inventory", role="Store Supervisor", face_url="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150")
-        session.add_all([emp1, emp2, emp3])
-
-        # 6. Add Sample Footfall Data
+        # 5. Add Sample Footfall Data
         logger.info("Creating sample footfall analytics...")
         import datetime
         now = datetime.datetime.utcnow()
@@ -141,36 +134,6 @@ async def seed_data():
                 timestamp=ts
             ))
         session.add_all(footfall_samples)
-
-        # 7. Add Sample Forensic & Assigned Employee Clips
-        logger.info("Creating sample assigned employee video clips...")
-        clip1 = ForensicClip(
-            title="Rahul Sharma - Face Embedding Video (Morning Shift)",
-            category="assign_employee",
-            cam_id="cam1",
-            emp_id="EMP-101",
-            emp_name="Rahul Sharma",
-            role="Senior Sales Executive",
-            shift="Morning",
-            file_url="/static/sample_emp1.mp4",
-            metadata_json={"duration_seconds": 120, "quality": "1080p"},
-            listener_json={"clip_id": 1, "emp_id": "EMP-101", "emp_name": "Rahul Sharma", "role": "Senior Sales Executive", "shift": "Morning", "status": "ready_for_cv_facial_embedding"},
-            status="processed"
-        )
-        clip2 = ForensicClip(
-            title="Priya Patel - Face Embedding Video (Night Shift)",
-            category="assign_employee",
-            cam_id="cam2",
-            emp_id="EMP-102",
-            emp_name="Priya Patel",
-            role="Floor Manager",
-            shift="Night",
-            file_url="/static/sample_emp2.mp4",
-            metadata_json={"duration_seconds": 90, "quality": "1080p"},
-            listener_json={"clip_id": 2, "emp_id": "EMP-102", "emp_name": "Priya Patel", "role": "Floor Manager", "shift": "Night", "status": "ready_for_cv_facial_embedding"},
-            status="processed"
-        )
-        session.add_all([clip1, clip2])
 
         # 8. Add Sample Heatmaps
         logger.info("Creating sample heatmaps...")
