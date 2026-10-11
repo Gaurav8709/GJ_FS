@@ -7,6 +7,10 @@
       "destination": "http://65.2.158.148/api/:path*"
     },
     {
+      "source": "/static/:path*",
+      "destination": "http://65.2.158.148/static/:path*"
+    },
+    {
       "source": "/ws/:path*",
       "destination": "http://65.2.158.148/ws/:path*"
     },

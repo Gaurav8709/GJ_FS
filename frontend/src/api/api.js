@@ -15,7 +15,26 @@ export const clearToken = () => localStorage.removeItem('gj_token');
 
 export const getImageUrl = (url) => {
   if (!url) return '';
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  if (url.startsWith('https://')) return url;
+
+  // On HTTPS (Vercel deployment), keep paths relative (/static/...) so Vercel's
+  // HTTPS rewrite proxy fetches them securely without Mixed Content blocking!
+  if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
+    if (url.startsWith('http://65.2.158.148/')) {
+      return url.replace('http://65.2.158.148', '');
+    }
+    if (url.startsWith('/')) {
+      return url;
+    }
+  }
+
+  // On localhost, relative path is proxied by Vite dev server
+  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    return url.startsWith('/') ? url : `/${url}`;
+  }
+
+  if (url.startsWith('http://')) return url;
+
   const targetBase = BASE || 'http://65.2.158.148';
   return `${targetBase.replace(/\/$/, '')}${url.startsWith('/') ? '' : '/'}${url}`;
 };
