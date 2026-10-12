@@ -1,0 +1,23 @@
+[Unit]
+Description=GJ-Fashion CV Employee Sync + Face Registration (cv_employee_sync_listener.py)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/mnt/data/face_recognition
+
+Environment="HOME=/home/ubuntu"
+Environment="PYTHONUNBUFFERED=1"
+Environment="PYTHONPATH=/mnt/data/workspace/deepstream_python_apps/apps:/mnt/data/python_libs/lib/python3.12/site-packages:/mnt/data/tensorrt/usr/lib/python3.12/site-packages:/usr/local/lib/python3.12/dist-packages:/usr/lib/python3/dist-packages"
+Environment="LD_LIBRARY_PATH=/mnt/data/python_libs/lib:/mnt/data/tensorrt/usr/lib:/usr/local/lib:/usr/lib:/opt/nvidia/deepstream/deepstream/lib"
+
+ExecStart=/usr/bin/python3 /mnt/data/face_recognition/cv_employee_sync_listener.py
+
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

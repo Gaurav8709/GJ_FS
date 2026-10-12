@@ -1,0 +1,21 @@
+
+[Unit]
+Description=Face Recognition DeepStream Attendance
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/mnt/data/face_recognition
+
+Environment="PYTHONPATH=/mnt/data/workspace/deepstream_python_apps/apps:/mnt/data/python_libs/lib/python3.12/site-packages:/mnt/data/tensorrt/usr/lib/python3.12/site-packages:/usr/local/lib/python3.12/dist-packages:/usr/lib/python3/dist-packages"
+
+Environment="LD_LIBRARY_PATH=/mnt/data/python_libs/lib:/mnt/data/tensorrt/usr/lib:/usr/local/lib:/usr/lib:/opt/nvidia/deepstream/deepstream/lib"
+
+ExecStart=/usr/bin/python3 /mnt/data/face_recognition/deepstream_attendance_headless_v6.py rtsp://65.1.214.31:8554/gj/cam2 rtsp://65.1.214.31:8554/gj/cam5 rtsp://65.1.214.31:8554/gj/cam7 rtsp://65.1.214.31:8554/gj/cam14 rtsp://65.1.214.31:8554/gj/cam15 rtsp://65.1.214.31:8554/gj/cam21 rtsp://65.1.214.31:8554/gj/cam23
+
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
