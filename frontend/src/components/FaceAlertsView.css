@@ -477,3 +477,105 @@
   background: rgba(168, 85, 247, 0.3);
   color: white;
 }
+
+/* Status details inside card */
+.status-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.status-time {
+  font-size: 0.72rem;
+  color: #9ca3af;
+  margin-top: 2px;
+}
+
+/* Latest snapshot on card */
+.card-snapshot-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.75rem;
+}
+
+.card-snapshot-thumb {
+  width: 80px;
+  height: 52px;
+  border-radius: 6px;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* More pill for camera list overflow */
+.cam-pill.more-pill {
+  background: rgba(156, 163, 175, 0.15);
+  color: #9ca3af;
+}
+
+/* Last Known Location Banner inside modal */
+.last-location-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+}
+
+.loc-icon { font-size: 1.3rem; }
+
+.loc-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.loc-label {
+  font-size: 0.7rem;
+  color: #6b7280;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.loc-value {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #93c5fd;
+}
+
+.loc-time {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  white-space: nowrap;
+}
+
+/* Detection time cell — split date and time */
+.time-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.time-date {
+  font-size: 0.75rem;
+  color: #f3f4f6;
+  font-weight: 600;
+}
+
+/* Modal footer info text */
+.modal-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.modal-footer-info {
+  font-size: 0.78rem;
+  color: #9ca3af;
+}
+

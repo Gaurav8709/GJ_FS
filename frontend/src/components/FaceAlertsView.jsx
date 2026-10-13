@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { getEmployeeMonitoringSummary, triggerFaceAlert, getEmployeeDetections } from '../api/api.js';
+import { getEmployeeMonitoringSummary, getEmployeeDetections, getImageUrl } from '../api/api.js';
 import './FaceAlertsView.css';
 
 export default function FaceAlertsView({ cameras }) {
@@ -13,11 +13,6 @@ export default function FaceAlertsView({ cameras }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL'); // ALL, ACTIVE, INACTIVE
   const [cameraFilter, setCameraFilter] = useState('ALL');
-  const [dateFilter, setDateFilter] = useState('');
-
-  // Real-time alert toast
-  const [recentAlert, setRecentAlert] = useState(null);
-  const [simulating, setSimulating] = useState(false);
 
   const fetchSummary = () => {
     getEmployeeMonitoringSummary()
@@ -38,6 +33,7 @@ export default function FaceAlertsView({ cameras }) {
 
   const handleOpenEmployeeDetails = (emp) => {
     setSelectedEmp(emp);
+    setCameraFilter('ALL');
     setLoadingDetections(true);
     getEmployeeDetections(emp.emp_id)
       .then((dets) => {
@@ -45,36 +41,6 @@ export default function FaceAlertsView({ cameras }) {
       })
       .catch(console.error)
       .finally(() => setLoadingDetections(false));
-  };
-
-  const handleSimulateDetection = async (emp, targetCamId) => {
-    setSimulating(true);
-    const camId = targetCamId || (cameras && cameras.length > 0 ? cameras[0].cam_id : 'cam06');
-    const camObj = (cameras || []).find((c) => c.cam_id === camId);
-    const locationName = camObj ? `${camObj.name || camId} (${camObj.section_name || 'Showroom'})` : `Camera ${camId ? camId.toUpperCase() : ''}`;
-
-    const payload = {
-      emp_id: emp.emp_id,
-      emp_name: emp.emp_name,
-      cam_id: camId,
-      location: locationName,
-      confidence: 0.97,
-      snapshot_url: emp.face_url || 'https://via.placeholder.com/300x200?text=Face+Snapshot',
-      timestamp: new Date().toISOString()
-    };
-
-    try {
-      const res = await triggerFaceAlert(payload);
-      setRecentAlert(res.alert);
-      fetchSummary();
-      if (selectedEmp && selectedEmp.emp_id === emp.emp_id) {
-        handleOpenEmployeeDetails(emp);
-      }
-    } catch (err) {
-      console.error('Alert trigger error:', err);
-    } finally {
-      setSimulating(false);
-    }
   };
 
   // Filtered Employees
@@ -100,6 +66,12 @@ export default function FaceAlertsView({ cameras }) {
   const activeEmployees = summary.filter((e) => e.total_detections > 0).length;
   const totalDetectionsToday = summary.reduce((acc, e) => acc + (e.total_detections || 0), 0);
 
+  // Filtered detections inside modal
+  const filteredDetections = useMemo(() => {
+    if (!empDetections.length) return [];
+    return empDetections.filter((d) => cameraFilter === 'ALL' || d.cam_id === cameraFilter);
+  }, [empDetections, cameraFilter]);
+
   return (
     <div className="face-alerts-view animate-fade-in">
       {/* Header */}
@@ -112,24 +84,10 @@ export default function FaceAlertsView({ cameras }) {
             </span>
           </div>
           <p className="monitoring-subtitle">
-            Real-time camera detection analytics for assigned showroom employees. Click any employee card to inspect detected camera locations, snapshots, and timestamps.
+            Real-time camera detection analytics for assigned showroom employees. Click any employee card to see their detection history, camera snapshots, and timestamps.
           </p>
         </div>
       </div>
-
-      {/* Real-time Alert Toast Banner */}
-      {recentAlert && (
-        <div className="alert-toast-banner animate-pop">
-          <div className="toast-icon">🚨</div>
-          <div className="toast-content">
-            <strong>{recentAlert.message}</strong>
-            <span>
-              Confidence: {Math.round((recentAlert.confidence || 0.95) * 100)}% • Location: {recentAlert.location} • {new Date(recentAlert.timestamp).toLocaleTimeString()}
-            </span>
-          </div>
-          <button className="toast-close" onClick={() => setRecentAlert(null)}>✕</button>
-        </div>
-      )}
 
       {/* KPI Cards */}
       <div className="monitoring-kpi-grid">
@@ -204,18 +162,23 @@ export default function FaceAlertsView({ cameras }) {
         <div className="employee-cards-grid">
           {filteredSummary.map((emp) => {
             const hasDetections = emp.total_detections > 0;
-            const lastSeenTime = emp.last_seen_timestamp ? new Date(emp.last_seen_timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null;
+            const lastSeenTime = emp.last_seen_timestamp
+              ? new Date(emp.last_seen_timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              : null;
+            const lastSeenDate = emp.last_seen_timestamp
+              ? new Date(emp.last_seen_timestamp).toLocaleDateString([], { day: '2-digit', month: 'short' })
+              : null;
 
             return (
-              <div 
-                key={emp.emp_id} 
+              <div
+                key={emp.emp_id}
                 className="employee-card hover-lift"
                 onClick={() => handleOpenEmployeeDetails(emp)}
               >
                 <div className="card-top">
                   <div className="emp-avatar-wrapper">
                     {emp.face_url ? (
-                      <img src={emp.face_url} alt={emp.emp_name} className="emp-card-avatar" />
+                      <img src={getImageUrl(emp.face_url)} alt={emp.emp_name} className="emp-card-avatar" />
                     ) : (
                       <div className="emp-card-avatar placeholder">👤</div>
                     )}
@@ -231,11 +194,15 @@ export default function FaceAlertsView({ cameras }) {
                   </div>
                 </div>
 
+                {/* Last Detection Status */}
                 <div className="card-status-banner">
                   {hasDetections ? (
                     <div className="status-active">
                       <span className="dot pulse"></span>
-                      <span>Last seen at <strong>{emp.last_seen_location || emp.last_seen_camera || 'Camera'}</strong> ({lastSeenTime})</span>
+                      <div className="status-details">
+                        <span>Last seen at <strong>{emp.last_seen_location || emp.last_seen_camera || 'Camera'}</strong></span>
+                        <span className="status-time">📅 {lastSeenDate} &nbsp; 🕐 {lastSeenTime}</span>
+                      </div>
                     </div>
                   ) : (
                     <div className="status-inactive">
@@ -245,24 +212,38 @@ export default function FaceAlertsView({ cameras }) {
                   )}
                 </div>
 
-                {/* Detected Cameras Pill List */}
-                <div className="cameras-detected-row">
-                  <span className="row-label">Cameras:</span>
-                  {emp.detected_cameras && emp.detected_cameras.length > 0 ? (
+                {/* Latest CV Snapshot from camera */}
+                {emp.recent_snapshots && emp.recent_snapshots.length > 0 && (
+                  <div className="card-snapshot-row">
+                    <span className="row-label">📸 Latest Snapshot:</span>
+                    <img
+                      src={getImageUrl(emp.recent_snapshots[0])}
+                      alt="Latest CV Snapshot"
+                      className="card-snapshot-thumb"
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                  </div>
+                )}
+
+                {/* Detected Camera Pills */}
+                {hasDetections && emp.detected_cameras && emp.detected_cameras.length > 0 && (
+                  <div className="cameras-detected-row">
+                    <span className="row-label">Cams:</span>
                     <div className="cam-pills">
-                      {emp.detected_cameras.map((c) => (
+                      {emp.detected_cameras.slice(0, 5).map((c) => (
                         <span key={c} className="cam-pill">📷 {c.toUpperCase()}</span>
                       ))}
+                      {emp.detected_cameras.length > 5 && (
+                        <span className="cam-pill more-pill">+{emp.detected_cameras.length - 5}</span>
+                      )}
                     </div>
-                  ) : (
-                    <span className="no-cams">None detected</span>
-                  )}
-                </div>
+                  </div>
+                )}
 
-                {/* Footer Action */}
+                {/* Footer */}
                 <div className="card-footer">
                   <span className="det-count">📊 {emp.total_detections} Detections</span>
-                  <button className="view-details-btn">View Monitoring Details ➔</button>
+                  <button className="view-details-btn">View Details ➔</button>
                 </div>
               </div>
             );
@@ -294,7 +275,7 @@ export default function FaceAlertsView({ cameras }) {
             </div>
 
             <div className="modal-body">
-              {/* Top Stats Banner inside Modal */}
+              {/* Summary Stats */}
               <div className="modal-stats-banner">
                 <div className="modal-stat">
                   <span className="stat-num">{selectedEmp.total_detections}</span>
@@ -302,47 +283,36 @@ export default function FaceAlertsView({ cameras }) {
                 </div>
                 <div className="modal-stat">
                   <span className="stat-num">{selectedEmp.unique_cameras_count}</span>
-                  <span className="stat-label">Cameras Detected</span>
+                  <span className="stat-label">Cameras Seen On</span>
                 </div>
                 <div className="modal-stat">
-                  <span className="stat-num">{selectedEmp.last_seen_location || 'N/A'}</span>
-                  <span className="stat-label">Last Location</span>
+                  <span className="stat-num">
+                    {selectedEmp.last_seen_timestamp
+                      ? new Date(selectedEmp.last_seen_timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                      : 'N/A'}
+                  </span>
+                  <span className="stat-label">Last Seen Time</span>
                 </div>
               </div>
 
-              {/* Cameras Detected List */}
-              <div className="modal-section">
-                <h4>Detected Camera Locations</h4>
-                <div className="detected-cameras-grid">
-                  {(cameras || []).map((cam) => {
-                    const isDetected = selectedEmp.detected_cameras?.includes(cam.cam_id);
-                    return (
-                      <div 
-                        key={cam.cam_id} 
-                        className={`cam-location-card ${isDetected ? 'detected' : 'normal'}`}
-                        onClick={() => handleSimulateDetection(selectedEmp, cam.cam_id)}
-                        title={`Click to simulate CV detection on ${cam.name || cam.cam_id}`}
-                      >
-                        <span className="cam-icon">{isDetected ? '🎥' : '📹'}</span>
-                        <div className="cam-info">
-                          <span className="cam-name">{cam.name || cam.cam_id}</span>
-                          <span className="cam-sec">{cam.section_name || 'Showroom Floor'}</span>
-                        </div>
-                        {isDetected ? (
-                          <span className="badge active-badge">Detected</span>
-                        ) : (
-                          <span className="badge sim-btn-sm">+ Test Detect</span>
-                        )}
-                      </div>
-                    );
-                  })}
+              {/* Last Known Location Banner */}
+              {selectedEmp.last_seen_location && (
+                <div className="last-location-banner">
+                  <span className="loc-icon">📍</span>
+                  <div className="loc-info">
+                    <span className="loc-label">Last Known Location</span>
+                    <span className="loc-value">{selectedEmp.last_seen_location}</span>
+                  </div>
+                  {selectedEmp.last_seen_timestamp && (
+                    <span className="loc-time">{new Date(selectedEmp.last_seen_timestamp).toLocaleString()}</span>
+                  )}
                 </div>
-              </div>
+              )}
 
-              {/* Snapshots & Detection History Table */}
+              {/* CV Camera Snapshots & Detection History */}
               <div className="modal-section">
                 <div className="section-title-controls">
-                  <h4>Camera Snapshots &amp; Detection History Log</h4>
+                  <h4>📸 Camera Snapshots &amp; Detection History</h4>
                   <div className="table-filters">
                     <select 
                       value={cameraFilter} 
@@ -362,60 +332,65 @@ export default function FaceAlertsView({ cameras }) {
                     <div className="spinner"></div>
                     <span>Loading detection history logs...</span>
                   </div>
-                ) : empDetections.length === 0 ? (
+                ) : filteredDetections.length === 0 ? (
                   <div className="empty-state-sm">
+                    <span style={{ fontSize: '2rem' }}>📭</span>
                     <p>No detection logs recorded for {selectedEmp.emp_name} yet.</p>
-                    <button 
-                      className="btn-sim-lg"
-                      onClick={() => handleSimulateDetection(selectedEmp)}
-                      disabled={simulating}
-                    >
-                      {simulating ? 'Simulating CV Detection...' : '🚀 Trigger Test Detection Event'}
-                    </button>
+                    <p style={{ fontSize: '0.78rem', color: '#6b7280', marginTop: 4 }}>
+                      Detections will appear here once the CV system sends face recognition events via <code>/api/face-alerts/detect</code>.
+                    </p>
                   </div>
                 ) : (
                   <div className="detections-table-wrapper">
                     <table className="detections-table">
                       <thead>
                         <tr>
-                          <th>Snapshot</th>
+                          <th>CV Snapshot</th>
                           <th>Camera / Location</th>
                           <th>Confidence</th>
-                          <th>Timestamp</th>
+                          <th>Detection Time</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {empDetections
-                          .filter((d) => cameraFilter === 'ALL' || d.cam_id === cameraFilter)
-                          .map((det) => (
-                            <tr key={det.id}>
-                              <td>
-                                {det.snapshot_url ? (
-                                  <a href={det.snapshot_url} target="_blank" rel="noreferrer">
-                                    <img src={det.snapshot_url} alt="Face Snapshot" className="det-snapshot-thumb" />
-                                  </a>
-                                ) : (
-                                  <span className="no-snap">📸 Snapshot</span>
-                                )}
-                              </td>
-                              <td>
-                                <div className="location-cell">
-                                  <span className="loc-name">{det.location}</span>
-                                  <span className="badge cam-tag">{det.cam_id.toUpperCase()}</span>
-                                </div>
-                              </td>
-                              <td>
-                                <span className="confidence-pill">
-                                  {Math.round((det.confidence || 0.95) * 100)}% Match
+                        {filteredDetections.map((det) => (
+                          <tr key={det.id}>
+                            <td>
+                              {det.snapshot_url ? (
+                                <a href={getImageUrl(det.snapshot_url)} target="_blank" rel="noreferrer">
+                                  <img
+                                    src={getImageUrl(det.snapshot_url)}
+                                    alt="CV Detection Snapshot"
+                                    className="det-snapshot-thumb"
+                                    onError={(e) => { e.target.style.display = 'none'; }}
+                                  />
+                                </a>
+                              ) : (
+                                <span className="no-snap">📸 No Snapshot</span>
+                              )}
+                            </td>
+                            <td>
+                              <div className="location-cell">
+                                <span className="loc-name">{det.location || `Camera ${det.cam_id}`}</span>
+                                <span className="badge cam-tag">{(det.cam_id || '').toUpperCase()}</span>
+                              </div>
+                            </td>
+                            <td>
+                              <span className="confidence-pill">
+                                {Math.round((det.confidence || 0.95) * 100)}% Match
+                              </span>
+                            </td>
+                            <td>
+                              <div className="time-cell">
+                                <span className="time-date">
+                                  {det.timestamp ? new Date(det.timestamp).toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
                                 </span>
-                              </td>
-                              <td>
                                 <span className="time-text">
-                                  {det.timestamp ? new Date(det.timestamp).toLocaleString() : 'Just now'}
+                                  {det.timestamp ? new Date(det.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—'}
                                 </span>
-                              </td>
-                            </tr>
-                          ))}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
                       </tbody>
                     </table>
                   </div>
@@ -424,13 +399,10 @@ export default function FaceAlertsView({ cameras }) {
             </div>
 
             <div className="modal-footer">
-              <button 
-                className="btn-sim-action"
-                onClick={() => handleSimulateDetection(selectedEmp)}
-                disabled={simulating}
-              >
-                {simulating ? 'Processing CV Event...' : '⚡ Simulate CV Detection Event'}
-              </button>
+              <span className="modal-footer-info">
+                {filteredDetections.length} detection{filteredDetections.length !== 1 ? 's' : ''} recorded
+                {cameraFilter !== 'ALL' ? ` on ${cameraFilter.toUpperCase()}` : ' across all cameras'}
+              </span>
               <button className="btn-primary" onClick={() => setSelectedEmp(null)}>Close</button>
             </div>
           </div>
