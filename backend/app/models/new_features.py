@@ -135,16 +135,19 @@ class CameraHeatmap(Base):
 
 
 class EmployeeDetectionLog(Base):
-    """Stores real-time employee detection events sent by CV team when detected on any camera."""
+    """Stores real-time employee detection events AND attendance records sent by CV team."""
     __tablename__ = "employee_detections"
 
     id           = Column(Integer, primary_key=True, autoincrement=True)
     emp_id       = Column(String(50), nullable=False)
     emp_name     = Column(String(150), nullable=False)
     cam_id       = Column(String(30), nullable=False)
-    location     = Column(String(100), nullable=True)
+    location     = Column(String(200), nullable=True)
     confidence   = Column(Float, default=0.95)
     snapshot_url = Column(String(500), nullable=True)
+    # Attendance fields added for CV team attendance pipeline
+    status       = Column(String(20), default="detected")   # detected | present | absent
+    attendance_date = Column(String(20), nullable=True)     # DD-MM-YYYY format from CV team
     meta_info    = Column(JSON, nullable=True)
     timestamp    = Column(DateTime, default=datetime.datetime.utcnow)
 
@@ -157,6 +160,8 @@ class EmployeeDetectionLog(Base):
             "location": self.location or f"Camera {self.cam_id}",
             "confidence": self.confidence,
             "snapshot_url": self.snapshot_url or "",
+            "status": self.status or "detected",
+            "attendance_date": self.attendance_date or "",
             "meta_info": self.meta_info or {},
             "timestamp": self.timestamp.isoformat() if self.timestamp else None,
         }
