@@ -9,6 +9,13 @@ from typing import Optional
 
 
 class Settings(BaseSettings):
+
+    
+    # Face recognition matching
+    FACE_MATCH_THRESHOLD: float = Field(default=0.45)
+    FACE_EMBEDDING_DIM: int = Field(default=512)
+
+
     """Application settings loaded from environment variables / .env file."""
 
     # ── Database ──────────────────────────────────────────────

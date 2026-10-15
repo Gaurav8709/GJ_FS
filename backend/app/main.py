@@ -90,7 +90,7 @@ app.mount("/static", StaticFiles(directory="static_files"), name="static")
 # Include Routers
 from app.routers import (
     auth, cameras, floors, zones, workers, assignments, detections, analytics, streaming,
-    forensics, footfall, face_alerts, heatmaps
+    forensics, footfall, face_alerts, heatmaps, recognition
 )
 
 app.include_router(auth.router)
@@ -106,6 +106,9 @@ app.include_router(forensics.router)
 app.include_router(footfall.router)
 app.include_router(face_alerts.router)
 app.include_router(heatmaps.router)
+
+app.include_router(recognition.router)
+
 
 from fastapi import WebSocket, WebSocketDisconnect
 from app.routers.streaming import alert_manager
