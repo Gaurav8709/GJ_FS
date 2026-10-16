@@ -2,6 +2,7 @@
 GJ-Fashion AI Smart Showroom — Configuration
 Loads all settings from .env via pydantic-settings.
 """
+from pathlib import Path
 
 from pydantic_settings import BaseSettings
 from pydantic import Field
@@ -9,6 +10,38 @@ from typing import Optional
 
 
 class Settings(BaseSettings):
+
+    
+    # Employee vs customer classification
+    EMPLOYEE_CLASSIFIER_MODEL_PATH: str = Field(default="best.pt")
+
+
+    # Face recognition matching
+    FACE_MATCH_THRESHOLD: float = Field(default=0.45)
+    FACE_EMBEDDING_DIM: int = Field(default=512)
+
+    # Face detection and video enrollment
+    FACE_MODEL_PACK: str = Field(default="buffalo_l")
+    FACE_USE_GPU: bool = Field(default=False)
+    FACE_DET_SIZE: int = Field(default=640)
+    FACE_MIN_DETECTION_SCORE: float = Field(default=0.60)
+    FACE_MIN_SIDE_PIXELS: int = Field(default=40)
+    FACE_AMBIGUOUS_AREA_RATIO: float = Field(default=0.60)
+
+    FACE_EMBEDDINGS_DIR: str = Field(
+        default=str(
+            Path(__file__).resolve().parents[1]
+            / "scripts"
+            / "cv_embeddings"
+        )
+    )
+
+    FACE_ENROLLMENT_SAMPLE_SECONDS: float = Field(default=0.50)
+    FACE_ENROLLMENT_MIN_SAMPLES: int = Field(default=3)
+    FACE_ENROLLMENT_MAX_SAMPLES: int = Field(default=40)
+    FACE_ENROLLMENT_MAX_SECONDS: int = Field(default=300)
+    FACE_ENROLLMENT_MAX_UPLOAD_MB: int = Field(default=200)
+
     """Application settings loaded from environment variables / .env file."""
 
     # ── Database ──────────────────────────────────────────────
@@ -71,3 +104,7 @@ class Settings(BaseSettings):
 
 # Singleton — import this everywhere
 settings = Settings()
+
+
+
+ 

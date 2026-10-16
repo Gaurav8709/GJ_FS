@@ -25,6 +25,11 @@ class Detection:
     zone_id: Optional[int] = None           # assigned after zone classification
     zone_name: Optional[str] = None
 
+    
+    employee_class: Optional[str] = None
+    employee_class_confidence: Optional[float] = None
+
+
 
 class DetectionEngine:
     """
@@ -70,6 +75,50 @@ class DetectionEngine:
         if self._model is None:
             self.load_model()
         return self._model
+    
+    def _classify_detections(self, frame, detections):
+        """Classify each detected person's crop."""
+        if not detections:
+            return
+
+        from app.services.employee_classifier import EmployeeClassifier
+
+        height, width = frame.shape[:2]
+        crops = []
+        valid_detections = []
+
+        for detection in detections:
+            x1, y1, x2, y2 = detection.bbox
+
+            # Keep crop coordinates inside the image.
+            x1 = max(0, min(width, x1))
+            x2 = max(0, min(width, x2))
+            y1 = max(0, min(height, y1))
+            y2 = max(0, min(height, y2))
+
+            if x2 <= x1 or y2 <= y1:
+                detection.employee_class = "unknown"
+                detection.employee_class_confidence = 0.0
+                continue
+
+            crop = frame[y1:y2, x1:x2]
+
+            if crop.size == 0:
+                detection.employee_class = "unknown"
+                detection.employee_class_confidence = 0.0
+                continue
+
+            crops.append(crop)
+            valid_detections.append(detection)
+
+        classifier = EmployeeClassifier.get_instance()
+        predictions = classifier.classify_crops(crops)
+
+        for detection, (label, confidence) in zip(
+            valid_detections, predictions
+        ):
+            detection.employee_class = label
+            detection.employee_class_confidence = confidence
 
     def detect_persons(
         self,
@@ -125,6 +174,7 @@ class DetectionEngine:
         except Exception as e:
             logger.error(f"YOLO inference error: {e}")
 
+        self._classify_detections(frame, detections)
         return detections
 
     def detect_persons_batch(
@@ -186,5 +236,10 @@ class DetectionEngine:
                     ))
         except Exception as e:
             logger.error(f"YOLO batch inference error: {e}")
+
+        for frame, detections in zip(frames, batch_detections):
+            self._classify_detections(frame, detections)
+
+
 
         return batch_detections
