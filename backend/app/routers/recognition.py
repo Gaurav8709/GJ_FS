@@ -3,6 +3,7 @@
 The caller must supply a face embedding produced by the configured model.
 This router does not accept raw images or generate vectors.
 """
+from pathlib import Path
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException
@@ -16,6 +17,7 @@ router = APIRouter(prefix="/api/recognition", tags=["Employee Recognition"])
 
 def get_matcher() -> FaceMatcher:
     return FaceMatcher(
+        embeddings_dir=Path(settings.FACE_EMBEDDINGS_DIR),
         threshold=settings.FACE_MATCH_THRESHOLD,
         expected_dimension=settings.FACE_EMBEDDING_DIM,
     )

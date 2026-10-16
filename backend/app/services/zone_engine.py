@@ -149,6 +149,44 @@ def draw_detection_boxes(
         color = zone_color_map.get(det.zone_id, default_color)
         cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
 
+        
+        # Display employee/customer classification.
+        if det.employee_class:
+            label = det.employee_class
+            confidence = det.employee_class_confidence
+
+            if confidence is not None:
+                label = f"{label} {confidence:.2f}"
+
+            (text_width, text_height), baseline = cv2.getTextSize(
+                label,
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.55,
+                2,
+            )
+
+            label_y = max(y1, text_height + baseline + 4)
+
+            cv2.rectangle(
+                frame,
+                (x1, label_y - text_height - baseline - 4),
+                (x1 + text_width + 6, label_y + 2),
+                color,
+                -1,
+            )
+
+            cv2.putText(
+                frame,
+                label,
+                (x1 + 3, label_y - 2),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.55,
+                (255, 255, 255),
+                2,
+                cv2.LINE_AA,
+            )
+
+
     return frame
 
 

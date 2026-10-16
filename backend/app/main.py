@@ -87,10 +87,22 @@ from fastapi.staticfiles import StaticFiles
 os.makedirs("static_files", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static_files"), name="static")
 
-# Include Routers
 from app.routers import (
-    auth, cameras, floors, zones, workers, assignments, detections, analytics, streaming,
-    forensics, footfall, face_alerts, heatmaps, recognition
+    auth,
+    cameras,
+    floors,
+    zones,
+    workers,
+    assignments,
+    detections,
+    analytics,
+    streaming,
+    forensics,
+    footfall,
+    face_alerts,
+    heatmaps,
+    recognition,
+    face_enrollment,
 )
 
 app.include_router(auth.router)
@@ -108,6 +120,7 @@ app.include_router(face_alerts.router)
 app.include_router(heatmaps.router)
 
 app.include_router(recognition.router)
+app.include_router(face_enrollment.router)
 
 
 from fastapi import WebSocket, WebSocketDisconnect
