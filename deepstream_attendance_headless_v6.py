@@ -640,110 +640,130 @@ def mark_attendance(camera_id, user_id, frame_capture):
 
         return True
 
-def send_attendance_alert(camera_id, person_name, frame_capture):
-    """
-    Request an S3 presigned URL from FastAPI and upload
-    the attendance evidence directly to S3.
+# ==========================================
+# ALERT SENDING (upload_snapshot + send_attendance)
+# ==========================================
+import tempfile
 
-    This is called ONLY after the 10-frame majority succeeds
-    AND attendance is newly registered for that camera.
+try:
+    from cv_employee_sync_listener_ import upload_snapshot, send_attendance
+except ImportError:
+    from cv_employee_sync_listener import upload_snapshot, send_attendance
+
+CV_API_BASE = "http://65.2.158.148"
+FAILED_ALERTS_DIR = "failed_alerts"
+
+
+def _save_failed_alert(camera_id, person_name, jpg_bytes, stage,
+                       attendance_date, timestamp, confidence,
+                       snapshot_url="", error=""):
+    """Save failed alert as <failed_alerts>/<cam>/<emp>_<ts>.jpg + .json"""
+    try:
+        cam_dir = os.path.join(FAILED_ALERTS_DIR, camera_id)
+        os.makedirs(cam_dir, exist_ok=True)
+
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        base = os.path.join(cam_dir, f"{person_name}_{ts}")
+
+        with open(base + ".jpg", "wb") as f:
+            f.write(jpg_bytes)
+
+        with open(base + ".json", "w") as f:
+            json.dump({
+                "emp_id": person_name,
+                "cam_id": camera_id,
+                "status": "present",
+                "attendance_date": attendance_date,
+                "timestamp": timestamp,
+                "confidence": float(confidence),
+                "snapshot_url": snapshot_url,
+                "failed_stage": stage,
+                "error": error,
+                "image": os.path.basename(base + ".jpg"),
+            }, f, indent=2)
+
+        print(f"[ALERT] FAILED ({stage}) -> saved {base}.jpg")
+
+    except Exception as e:
+        print(f"[ALERT] Could not save failed alert {camera_id}/{person_name}: {e}")
+
+
+def send_attendance_alert(camera_id, person_name, frame_capture, confidence=1.0):
+    """
+    1. upload_snapshot()  -> snapshot_url
+    2. send_attendance()  -> RDS record
+    On any failure the frame + details go to failed_alerts/<camera_id>/.
     """
 
-    detected_at = datetime.utcnow().strftime(
-        "%Y-%m-%dT%H:%M:%SZ"
+    attendance_date = datetime.now().strftime("%d-%m-%Y")
+    timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+
+    ok, encoded = cv2.imencode(
+        ".jpg", frame_capture, [cv2.IMWRITE_JPEG_QUALITY, 90]
+    )
+    if not ok:
+        print(f"[ALERT] JPEG encoding failed for {camera_id}/{person_name}")
+        return False
+
+    jpg_bytes = encoded.tobytes()
+
+    tmp_path = os.path.join(
+        tempfile.gettempdir(),
+        f"{person_name}_{camera_id}_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.jpg"
     )
 
+    snapshot_url = ""
+
     try:
+        with open(tmp_path, "wb") as f:
+            f.write(jpg_bytes)
 
-        # ------------------------------------------
-        # 1. Ask FastAPI for presigned URL
-        # ------------------------------------------
-
-        data = {
-            "camera_id": camera_id,
-            "detected_at": detected_at,
-            "file_ext": "jpg"
-        }
-
-        response = requests.post(
-            f"{BASE_URL}/api/ingest/presigned-url",
-            json=data,
-            timeout=10
+        # Step 1: upload snapshot
+        snapshot_url = upload_snapshot(
+            tmp_path, person_name, camera_id, api_base_url=CV_API_BASE
         )
 
-        if response.status_code != 200:
-            print(
-                f"[ALERT] Presigned URL failed "
-                f"for {camera_id}/{person_name}: "
-                f"{response.status_code} "
-                f"{response.text}"
-            )
+        if not snapshot_url:
+            _save_failed_alert(camera_id, person_name, jpg_bytes,
+                               "upload_snapshot", attendance_date,
+                               timestamp, confidence)
             return False
 
-        result = response.json()
-
-        upload_url = result["upload_url"]
-        s3_key = result["s3_key"]
-
-        # ------------------------------------------
-        # 2. Encode current frame
-        # ------------------------------------------
-
-        success, encoded = cv2.imencode(
-            ".jpg",
-            frame_capture,
-            [
-                cv2.IMWRITE_JPEG_QUALITY,
-                90
-            ]
+        # Step 2: send attendance
+        result = send_attendance(
+            person_name, camera_id,
+            status="present",
+            snapshot_url=snapshot_url,
+            attendance_date=attendance_date,
+            confidence=confidence,
+            timestamp=timestamp,
+            api_base_url=CV_API_BASE,
         )
 
-        if not success:
-            print(
-                f"[ALERT] JPEG encoding failed "
-                f"for {camera_id}/{person_name}"
-            )
-            return False
-
-        # ------------------------------------------
-        # 3. Upload directly to S3
-        # ------------------------------------------
-
-        upload_response = requests.put(
-            upload_url,
-            data=encoded.tobytes(),
-            headers={
-                "Content-Type": "image/jpeg"
-            },
-            timeout=30
-        )
-
-        if upload_response.status_code not in (200, 201, 204):
-            print(
-                f"[ALERT] S3 upload failed "
-                f"for {camera_id}/{person_name}: "
-                f"{upload_response.status_code} "
-                f"{upload_response.text}"
-            )
+        if not result:
+            _save_failed_alert(camera_id, person_name, jpg_bytes,
+                               "send_attendance", attendance_date,
+                               timestamp, confidence, snapshot_url)
             return False
 
         print(
-            f"[ALERT] REGISTERED | "
-            f"camera={camera_id} | "
-            f"person={person_name} | "
-            f"s3={s3_key}"
+            f"[ALERT] REGISTERED | camera={camera_id} | "
+            f"person={person_name} | snapshot={snapshot_url}"
         )
-
         return True
 
     except Exception as e:
-
-        print(
-            f"[ALERT] Exception for "
-            f"{camera_id}/{person_name}: {e}"
-        )
-
+        _save_failed_alert(camera_id, person_name, jpg_bytes,
+                           "exception", attendance_date, timestamp,
+                           confidence, snapshot_url, str(e))
         return False
+
+    finally:
+        try:
+            os.remove(tmp_path)
+        except Exception:
+            pass
+
 
 def send_detection(employee_id, camera_id, confidence):
     detected_at = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
