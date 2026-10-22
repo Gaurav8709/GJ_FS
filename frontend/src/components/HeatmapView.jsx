@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { getLatestHeatmaps, getHeatmapForCamera, toggleCameraAnalytics, getImageUrl } from '../api/api.js';
+import { getLatestHeatmaps, getHeatmapForCamera, toggleCameraAnalytics, getImageUrl, getFootfallConfig, updateHeatmapConfig } from '../api/api.js';
 import './HeatmapView.css';
 
 export default function HeatmapView({ cameras: initialCameras = [] }) {
@@ -16,10 +16,30 @@ export default function HeatmapView({ cameras: initialCameras = [] }) {
   const [showConfigPanel, setShowConfigPanel] = useState(false);
   const [togglingCam, setTogglingCam] = useState({});
   const [imageErrorMap, setImageErrorMap] = useState({});
+  const [savingInterval, setSavingInterval] = useState({});
 
   useEffect(() => {
     setCamList(initialCameras);
   }, [initialCameras]);
+
+  useEffect(() => {
+    getFootfallConfig().then((cfg) => {
+      const settings = cfg?.cameras || {};
+      setCamList((prev) => prev.map((cam) => ({ ...cam, heatmap_interval_minutes: settings[cam.cam_id]?.heatmap_interval_minutes || 60 })));
+    }).catch(console.error);
+  }, []);
+
+  const handleIntervalChange = async (camId, value) => {
+    setSavingInterval((prev) => ({ ...prev, [camId]: true }));
+    try {
+      const saved = await updateHeatmapConfig(camId, value);
+      setCamList((prev) => prev.map((cam) => cam.cam_id === camId ? { ...cam, heatmap_interval_minutes: saved.heatmap_interval_minutes } : cam));
+    } catch (err) {
+      alert(`Could not save interval for ${camId}: ${err.message}`);
+    } finally {
+      setSavingInterval((prev) => ({ ...prev, [camId]: false }));
+    }
+  };
 
   const fetchHeatmaps = () => {
     getLatestHeatmaps(selectedDate)
@@ -234,6 +254,7 @@ export default function HeatmapView({ cameras: initialCameras = [] }) {
                   </div>
 
                   <div className="tile-meta">
+                    <div className="meta-line"><span className="meta-label">Report interval:</span><select className="cam-select" value={cam.heatmap_interval_minutes || 60} disabled={!!savingInterval[cam.cam_id]} onChange={(e) => handleIntervalChange(cam.cam_id, e.target.value)}>{[15, 30, 45, 60, 90, 120].map((mins) => <option key={mins} value={mins}>{mins} minutes</option>)}</select></div>
                     <div className="meta-line">
                       <span className="meta-label">Status:</span>
                       <span className={`status-badge ${isEnabled ? 'green' : 'gray'}`}>
@@ -519,8 +540,12 @@ export default function HeatmapView({ cameras: initialCameras = [] }) {
                         ⏰ {h.created_at ? new Date(h.created_at).toLocaleString() : 'Recent'}
                       </div>
                       <div className="card-meta-info">
-                        <div><span>Hotspot:</span> <strong>{hMeta.top_zone || h.top_zone || 'Showroom Floor'}</strong></div>
-                        <div><span>Peak Hour:</span> <strong>{hMeta.peak_hour || '14:00 - 17:00'}</strong></div>
+                        <div><span>Period:</span> <strong>{hMeta.period_start && hMeta.period_end ? `${new Date(hMeta.period_start).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"})} – ${new Date(hMeta.period_end).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"})}` : "Legacy report"}</strong></div>
+                        <div><span>Interval:</span> <strong>{hMeta.interval_minutes ? `${hMeta.interval_minutes} minutes` : "60 minutes (legacy)"}</strong></div>
+                        <div><span>Unique tracked people:</span> <strong>{hMeta.unique_people_count ?? "Not recorded"}</strong></div>
+                        <div><span>Generated:</span> <strong>{hMeta.generated_at || h.created_at || "Unknown"}</strong></div>
+                        <div><span>Hotspot:</span> <strong>{hMeta.top_zone || h.top_zone || "Showroom Floor"}</strong></div>
+                        <div><span>Peak Hour:</span> <strong>{hMeta.peak_hour || "14:00 - 17:00"}</strong></div>
                       </div>
                       <div className="card-actions">
                         <button 
