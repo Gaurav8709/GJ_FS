@@ -12,6 +12,21 @@ from app.database import get_db
 from app.models.camera import Camera
 from app.schemas.camera import CameraCreate, CameraUpdate, CameraResponse
 from app.services.camera_manager import CameraManager
+import json
+from pathlib import Path
+
+HEATMAP_SETTINGS_FILE = Path(__file__).resolve().parents[1] / "heatmap_settings.json"
+HEATMAP_INTERVALS = {15, 30, 45, 60, 90, 120}
+def _read_heatmap_settings():
+    try:
+        return json.loads(HEATMAP_SETTINGS_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+def _write_heatmap_settings(data):
+    HEATMAP_SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    tmp = HEATMAP_SETTINGS_FILE.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    tmp.replace(HEATMAP_SETTINGS_FILE)
 
 router = APIRouter(prefix="/api/cameras", tags=["cameras"])
 
@@ -178,12 +193,14 @@ async def get_footfall_cameras_config(db: AsyncSession = Depends(get_db)):
     cameras = result.scalars().all()
 
     cameras_map = {}
+    heatmap_settings = _read_heatmap_settings()
     for cam in cameras:
         cameras_map[cam.cam_id] = {
             "enabled": bool(cam.footfall_enabled if cam.footfall_enabled is not None else cam.active),
             "uri": cam.rtsp_url or f"rtsp://65.1.214.31:8554/gj/{cam.cam_id}",
             "analytics": cam.analytics_config or f"config_nvdsanalytics_{cam.cam_id}.txt",
-            "inside_point": cam.inside_point
+            "inside_point": cam.inside_point,
+            "heatmap_interval_minutes": int(heatmap_settings.get(cam.cam_id, 60))
         }
 
     return {
@@ -192,6 +209,33 @@ async def get_footfall_cameras_config(db: AsyncSession = Depends(get_db)):
         "coord_height": 1080,
         "cameras": cameras_map
     }
+
+
+@router.get("/{cam_id}/heatmap-config")
+async def get_heatmap_config(cam_id: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Camera).where(func.lower(Camera.cam_id) == cam_id.strip().lower()))
+    cam = result.scalar_one_or_none()
+    if cam is None:
+        raise HTTPException(status_code=404, detail="Camera not found")
+    return {"cam_id": cam.cam_id, "heatmap_interval_minutes": int(_read_heatmap_settings().get(cam.cam_id, 60))}
+
+
+@router.put("/{cam_id}/heatmap-config")
+async def update_heatmap_config(cam_id: str, payload: Dict[str, Any] = Body(...), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Camera).where(func.lower(Camera.cam_id) == cam_id.strip().lower()))
+    cam = result.scalar_one_or_none()
+    if cam is None:
+        raise HTTPException(status_code=404, detail="Camera not found")
+    try:
+        interval = int(payload.get("heatmap_interval_minutes", 60))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=422, detail="Invalid interval")
+    if interval not in HEATMAP_INTERVALS:
+        raise HTTPException(status_code=422, detail="Interval must be 15, 30, 45, 60, 90, or 120")
+    settings = _read_heatmap_settings()
+    settings[cam.cam_id] = interval
+    _write_heatmap_settings(settings)
+    return {"cam_id": cam.cam_id, "heatmap_interval_minutes": interval}
 
 
 @router.post("/footfall-config/import")

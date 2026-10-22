@@ -194,10 +194,16 @@ export const deleteForensicClip = (id) =>
 
 
 /* ---------- Heatmaps ---------- */
-export const getLatestHeatmaps = (date) =>
-  apiFetch(`/api/heatmaps/latest${date ? `?date=${date}` : ''}`);
-export const getHeatmapForCamera = (camId, limit = 50, date) =>
-  apiFetch(`/api/heatmaps/camera/${camId}?limit=${limit}${date ? `&date=${date}` : ''}`);
+export const getLatestHeatmaps = (date) => apiFetch(`/api/heatmaps/latest${date ? `?date=${date}` : ''}`);
+export const getHeatmapForCamera = (camId, limit = 50, date, startDatetime, endDatetime) => {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (date) params.set('date', date);
+  if (startDatetime) params.set('start_datetime', startDatetime);
+  if (endDatetime) params.set('end_datetime', endDatetime);
+  return apiFetch(`/api/heatmaps/camera/${encodeURIComponent(camId)}?${params}`);
+};
+export const getFootfallConfig = () => apiFetch('/api/cameras/footfall-config');
+export const updateHeatmapConfig = (camId, interval) => apiFetch(`/api/cameras/${encodeURIComponent(camId)}/heatmap-config`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ heatmap_interval_minutes: Number(interval) }) });
 export async function uploadHeatmap(formData) {
   const token = getToken();
   const res = await fetch(`${BASE}/api/heatmaps/upload`, {

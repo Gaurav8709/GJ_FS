@@ -59,10 +59,19 @@ async def get_camera_heatmap(
     cam_id: str,
     limit: int = 50,
     date: Optional[str] = Query(None, description="Filter by YYYY-MM-DD"),
+    start_datetime: Optional[str] = Query(None),
+    end_datetime: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
-    """Fetch heatmaps for a specific camera with limit and date filtering."""
+    """Fetch historical heatmaps for a camera with date/time filtering."""
     query = select(CameraHeatmap).where(CameraHeatmap.cam_id == cam_id)
+    try:
+        if start_datetime:
+            query = query.where(CameraHeatmap.created_at >= datetime.fromisoformat(start_datetime))
+        if end_datetime:
+            query = query.where(CameraHeatmap.created_at <= datetime.fromisoformat(end_datetime))
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Datetime filters must be ISO format")
 
     if date and isinstance(date, str):
         try:
@@ -96,10 +105,19 @@ async def get_camera_heatmap(
 @router.get("/latest")
 async def list_latest_heatmaps(
     date: Optional[str] = Query(None, description="Filter by YYYY-MM-DD"),
+    start_datetime: Optional[str] = Query(None),
+    end_datetime: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
     """List all latest camera heatmaps across showroom with date filter."""
     query = select(CameraHeatmap)
+    try:
+        if start_datetime:
+            query = query.where(CameraHeatmap.created_at >= datetime.fromisoformat(start_datetime))
+        if end_datetime:
+            query = query.where(CameraHeatmap.created_at <= datetime.fromisoformat(end_datetime))
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Datetime filters must be ISO format")
     if date and isinstance(date, str):
         try:
             parsed_date = datetime.strptime(date, "%Y-%m-%d").date()
