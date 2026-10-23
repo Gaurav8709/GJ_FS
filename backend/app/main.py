@@ -29,7 +29,23 @@ logger = logging.getLogger("gjfashion.main")
 async def lifespan(app: FastAPI):
     """Lifecycle events for FastAPI."""
     logger.info("Starting up GJ-Fashion API...")
-    
+    import asyncio
+    from app.services.footfall_event_service import (
+        configure_footfall_event_loop,
+    )
+
+    configure_footfall_event_loop(asyncio.get_running_loop())
+
+        # Footfall event writes must use the FastAPI application's event loop.
+    import asyncio
+    from app.services.footfall_event_service import (
+        configure_footfall_event_loop,
+    )
+
+    configure_footfall_event_loop(asyncio.get_running_loop())
+
+
+
     # Initialize Camera Manager and Batch Inference
     manager = CameraManager.get_instance()
     batch_engine = BatchInferenceEngine.get_instance()

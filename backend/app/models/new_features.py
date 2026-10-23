@@ -166,3 +166,75 @@ class EmployeeDetectionLog(Base):
             "timestamp": self.timestamp.isoformat() if self.timestamp else None,
         }
 
+
+
+
+import uuid
+
+
+class FootfallEvent(Base):
+    """Stores an entry or exit crossing and its snapshot."""
+    __tablename__ = "footfall_events"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    event_id = Column(
+        String(36), unique=True, nullable=False,
+        default=lambda: str(uuid.uuid4())
+    )
+    cam_id = Column(String(30), nullable=False, index=True)
+    camera_name = Column(String(150), nullable=True)
+    tracking_id = Column(String(80), nullable=False)
+    event_type = Column(String(10), nullable=False, index=True)
+    timestamp = Column(
+        DateTime, nullable=False, default=datetime.datetime.utcnow,
+        index=True
+    )
+    snapshot_url = Column(String(500), nullable=False)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "event_id": self.event_id,
+            "cam_id": self.cam_id,
+            "camera_name": self.camera_name,
+            "tracking_id": self.tracking_id,
+            "event_type": self.event_type,
+            "timestamp": (
+                self.timestamp.isoformat() if self.timestamp else None
+            ),
+            "snapshot_url": self.snapshot_url,
+        }
+
+
+class FootfallGate(Base):
+    """Per-camera line used to detect entry and exit crossings."""
+    __tablename__ = "footfall_gates"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    cam_id = Column(String(30), unique=True, nullable=False, index=True)
+    line_start = Column(JSON, nullable=False)
+    line_end = Column(JSON, nullable=False)
+    entry_side = Column(Integer, nullable=False, default=1)
+    enabled = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(
+        DateTime,
+        default=datetime.datetime.utcnow,
+        onupdate=datetime.datetime.utcnow,
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "cam_id": self.cam_id,
+            "line_start": self.line_start,
+            "line_end": self.line_end,
+            "entry_side": self.entry_side,
+            "enabled": self.enabled,
+            "created_at": (
+                self.created_at.isoformat() if self.created_at else None
+            ),
+            "updated_at": (
+                self.updated_at.isoformat() if self.updated_at else None
+            ),
+        }

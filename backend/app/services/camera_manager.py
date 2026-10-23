@@ -13,6 +13,8 @@ from app.services.camera_processor import CameraProcessor
 from app.services.zone_engine import ZoneConfig
 from app.models.camera import Camera, CameraZone
 
+from app.models.new_features import FootfallGate
+
 logger = logging.getLogger("gjfashion.camera_manager")
 
 
@@ -45,6 +47,13 @@ class CameraManager:
         )
         cameras = result.scalars().all()
 
+        gate_result = await db.execute(select(FootfallGate))
+        footfall_gates = {
+            gate.cam_id: gate.to_dict()
+            for gate in gate_result.scalars().all()
+        }
+
+
         logger.info(f"Loading {len(cameras)} cameras from database")
 
         for cam in cameras:
@@ -53,6 +62,7 @@ class CameraManager:
                 cam_id=cam.cam_id,
                 rtsp_url=cam.rtsp_url,
                 zones=zones,
+                footfall_gate=footfall_gates.get(cam.cam_id),
             )
             self._processors[cam.cam_id] = processor
 
@@ -104,7 +114,16 @@ class CameraManager:
             cam_id=cam.cam_id,
             rtsp_url=cam.rtsp_url,
             zones=zones,
+            footfall_gate=footfall_gate,
         )
+
+
+        gate_result = await db.execute(
+            select(FootfallGate).where(FootfallGate.cam_id == cam_id)
+        )
+        saved_gate = gate_result.scalar_one_or_none()
+        footfall_gate = saved_gate.to_dict() if saved_gate else None
+
         self._processors[cam_id] = processor
         processor.start()
         return True

@@ -1,0 +1,229 @@
+.footfall-history-refresh,
+.footfall-history-clear,
+.footfall-history-pagination button {
+  border: 1px solid #475569;
+  background: transparent;
+  color: var(--text-primary, #e2e8f0);
+  border-radius: 7px;
+  padding: 8px 11px;
+  cursor: pointer;
+}
+
+.footfall-history-refresh:disabled,
+.footfall-history-pagination button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.footfall-event-filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(130px, 1fr));
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 16px;
+}
+
+.footfall-event-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 0.76rem;
+  color: var(--text-secondary, #94a3b8);
+}
+
+.footfall-event-filters input,
+.footfall-event-filters select {
+  width: 100%;
+  min-width: 0;
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 1px solid var(--border-subtle, #334155);
+  border-radius: 7px;
+  color: var(--text-primary, #f8fafc);
+  background: var(--bg-secondary, #0f172a);
+}
+
+.footfall-history-clear {
+  min-height: 34px;
+}
+
+.footfall-event-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.footfall-event-item {
+  min-width: 0;
+  display: flex;
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid var(--border-subtle, rgba(148, 163, 184, 0.17));
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.35);
+}
+
+.footfall-event-thumb {
+  flex: 0 0 118px;
+  width: 118px;
+  height: 95px;
+  border: 0;
+  padding: 0;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #020617;
+  cursor: zoom-in;
+}
+
+.footfall-event-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.footfall-event-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 0.77rem;
+  color: var(--text-secondary, #94a3b8);
+}
+
+.footfall-event-info strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary, #e2e8f0);
+}
+
+.footfall-event-info time {
+  line-height: 1.35;
+}
+
+.footfall-event-pill {
+  align-self: flex-start;
+  padding: 3px 7px;
+  border-radius: 5px;
+  font-size: 0.67rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.footfall-event-pill.entry {
+  background: rgba(16, 185, 129, 0.14);
+  color: #34d399;
+}
+
+.footfall-event-pill.exit {
+  background: rgba(248, 113, 113, 0.14);
+  color: #f87171;
+}
+
+.footfall-history-empty {
+  padding: 26px 12px;
+  text-align: center;
+  color: var(--text-secondary, #94a3b8);
+  border: 1px dashed #475569;
+  border-radius: 9px;
+  font-size: 0.85rem;
+}
+
+.footfall-history-error {
+  color: #fca5a5;
+  font-size: 0.85rem;
+}
+
+.footfall-history-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  color: var(--text-secondary, #94a3b8);
+  font-size: 0.8rem;
+}
+
+.footfall-history-pagination div {
+  display: flex;
+  gap: 8px;
+}
+
+.footfall-image-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(2, 6, 23, 0.88);
+}
+
+.footfall-image-modal-content {
+  position: relative;
+  max-width: min(1100px, 96vw);
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 12px;
+}
+
+.footfall-image-modal-content img {
+  max-width: 100%;
+  max-height: 76vh;
+  object-fit: contain;
+}
+
+.footfall-image-modal-content div {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: #cbd5e1;
+  font-size: 0.82rem;
+}
+
+.footfall-image-modal-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  z-index: 1;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(2, 6, 23, 0.8);
+  color: #fff;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+@media (max-width: 1050px) {
+  .footfall-event-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .footfall-event-filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 650px) {
+  .footfall-event-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .footfall-event-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .footfall-event-thumb {
+    flex-basis: 105px;
+    width: 105px;
+  }
+}

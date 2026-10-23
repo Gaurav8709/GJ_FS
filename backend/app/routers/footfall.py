@@ -7,10 +7,12 @@ import datetime
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, extract
 
 from app.database import get_db
-from app.models.new_features import FootfallRecord
+from app.models.new_features import FootfallRecord, FootfallEvent, FootfallGate
+from app.models.camera import Camera
+from app.services.camera_manager import CameraManager
 
 router = APIRouter(prefix="/api/footfall", tags=["Footfall Analytics"])
 
@@ -85,7 +87,7 @@ async def get_footfall_stats(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Returns aggregated footfall statistics, timestamped history, gender & age distributions 
+    Returns aggregated footfall statistics, timestamped history, gender & age distributions
     filtered by date range, time duration, or specific camera stream.
     """
     default_start = datetime.datetime(2026, 9, 28, 0, 0, 0)
@@ -166,3 +168,245 @@ async def get_footfall_stats(
     }
 
 
+
+
+@router.get("/gates/{cam_id}")
+async def get_footfall_gate(
+    cam_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get the configured entry/exit line for a camera."""
+    camera_result = await db.execute(
+        select(Camera).where(Camera.cam_id == cam_id)
+    )
+    camera = camera_result.scalar_one_or_none()
+
+    if camera is None:
+        raise HTTPException(status_code=404, detail="Camera not found")
+
+    gate_result = await db.execute(
+        select(FootfallGate).where(FootfallGate.cam_id == cam_id)
+    )
+    gate = gate_result.scalar_one_or_none()
+
+    if gate is None:
+        return {
+            "cam_id": cam_id,
+            "line_start": [0.25, 0.5],
+            "line_end": [0.75, 0.5],
+            "entry_side": 1,
+            "enabled": False,
+        }
+
+    return gate.to_dict()
+
+
+@router.put("/gates/{cam_id}")
+async def save_footfall_gate(
+    cam_id: str,
+    payload: Dict[str, Any] = Body(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create or update a camera's entry/exit line."""
+    camera_result = await db.execute(
+        select(Camera).where(Camera.cam_id == cam_id)
+    )
+    camera = camera_result.scalar_one_or_none()
+
+    if camera is None:
+        raise HTTPException(status_code=404, detail="Camera not found")
+
+    line_start = payload.get("line_start")
+    line_end = payload.get("line_end")
+    entry_side = payload.get("entry_side", 1)
+    enabled = payload.get("enabled", False)
+
+    for name, point in (
+        ("line_start", line_start),
+        ("line_end", line_end),
+    ):
+        if (
+            not isinstance(point, list)
+            or len(point) != 2
+            or any(
+                not isinstance(value, (int, float))
+                or isinstance(value, bool)
+                or not 0 <= value <= 1
+                for value in point
+            )
+        ):
+            raise HTTPException(
+                status_code=422,
+                detail=f"{name} must contain two normalized coordinates between 0 and 1",
+            )
+
+    if line_start == line_end:
+        raise HTTPException(
+            status_code=422,
+            detail="The gate line endpoints must be different",
+        )
+
+    if (
+        not isinstance(entry_side, int)
+        or isinstance(entry_side, bool)
+        or entry_side not in (-1, 1)
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail="entry_side must be 1 or -1",
+        )
+
+    if not isinstance(enabled, bool):
+        raise HTTPException(
+            status_code=422,
+            detail="enabled must be a boolean",
+        )
+
+    gate_result = await db.execute(
+        select(FootfallGate).where(FootfallGate.cam_id == cam_id)
+    )
+    gate = gate_result.scalar_one_or_none()
+
+    if gate is None:
+        gate = FootfallGate(
+            cam_id=cam_id,
+            line_start=line_start,
+            line_end=line_end,
+            entry_side=entry_side,
+            enabled=enabled,
+        )
+        db.add(gate)
+    else:
+        gate.line_start = line_start
+        gate.line_end = line_end
+        gate.entry_side = entry_side
+        gate.enabled = enabled
+
+
+    await db.commit()
+    await db.refresh(gate)
+
+    # Apply the new configuration without restarting the camera.
+    manager = CameraManager.get_instance()
+    processor = manager.get_processor(cam_id)
+
+    if processor is not None:
+        processor.update_footfall_gate(gate.to_dict())
+
+    return gate.to_dict()
+
+
+@router.get("/events")
+async def get_footfall_events(
+    cam_id: Optional[str] = Query(None),
+    event_type: Optional[str] = Query(None),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    start_time: Optional[str] = Query(None),
+    end_time: Optional[str] = Query(None),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return separate entry/exit crossing records with pagination and filters."""
+    conditions = []
+
+    if cam_id:
+        conditions.append(FootfallEvent.cam_id == cam_id)
+
+    if event_type:
+        normalized_type = event_type.upper()
+        if normalized_type not in ("ENTRY", "EXIT"):
+            raise HTTPException(
+                status_code=422,
+                detail="event_type must be ENTRY or EXIT",
+            )
+        conditions.append(FootfallEvent.event_type == normalized_type)
+
+    try:
+        if start_date:
+            parsed_date = datetime.datetime.strptime(
+                start_date, "%Y-%m-%d"
+            ).date()
+
+            start_dt = datetime.datetime.combine(
+                parsed_date,
+                datetime.time.min,
+            )
+
+            if start_time:
+                parsed_time = datetime.time.fromisoformat(start_time)
+                start_dt = datetime.datetime.combine(
+                    parsed_date, parsed_time
+                )
+
+            conditions.append(FootfallEvent.timestamp >= start_dt)
+
+        if end_date:
+            parsed_date = datetime.datetime.strptime(
+                end_date, "%Y-%m-%d"
+            ).date()
+
+            end_dt = datetime.datetime.combine(
+                parsed_date,
+                datetime.time.max,
+            )
+
+            if end_time:
+                parsed_time = datetime.time.fromisoformat(end_time)
+                end_dt = datetime.datetime.combine(
+                    parsed_date, parsed_time
+                )
+
+            conditions.append(FootfallEvent.timestamp <= end_dt)
+
+        # Time-only filters also work when a date is not specified.
+        timestamp_minutes = (
+            extract("hour", FootfallEvent.timestamp) * 60
+            + extract("minute", FootfallEvent.timestamp)
+        )
+
+        if start_time and not start_date:
+            parsed_time = datetime.time.fromisoformat(start_time)
+            conditions.append(
+                timestamp_minutes
+                >= parsed_time.hour * 60 + parsed_time.minute
+            )
+
+        if end_time and not end_date:
+            parsed_time = datetime.time.fromisoformat(end_time)
+            conditions.append(
+                timestamp_minutes
+                <= parsed_time.hour * 60 + parsed_time.minute
+            )
+
+    except ValueError:
+        raise HTTPException(
+            status_code=422,
+            detail="Dates must use YYYY-MM-DD and times must use HH:MM",
+        )
+
+    count_result = await db.execute(
+        select(func.count(FootfallEvent.id)).where(*conditions)
+    )
+    total = count_result.scalar_one()
+
+    result = await db.execute(
+        select(FootfallEvent)
+        .where(*conditions)
+        .order_by(
+            FootfallEvent.timestamp.desc(),
+            FootfallEvent.id.desc(),
+        )
+        .offset(offset)
+        .limit(limit)
+    )
+
+    events = result.scalars().all()
+
+    return {
+        "items": [event.to_dict() for event in events],
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
