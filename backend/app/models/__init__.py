@@ -8,4 +8,12 @@ from app.models.camera import Camera, CameraZone     # noqa: F401
 from app.models.worker import Worker, WorkerAssignment  # noqa: F401
 from app.models.detection import DetectionLog, Alert  # noqa: F401
 from app.models.user import User, CameraAccess       # noqa: F401
-from app.models.new_features import ForensicClip, FootfallRecord, EmployeeFace, CameraHeatmap  # noqa: F401
+
+from app.models.new_features import (
+    ForensicClip,
+    FootfallRecord,
+    FootfallEvent,
+    FootfallGate,
+    EmployeeFace,
+    CameraHeatmap,
+)  # noqa: F401

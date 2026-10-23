@@ -10,7 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from app.database import get_db
-from app.models.new_features import FootfallRecord
+from app.models.new_features import FootfallRecord, FootfallEvent, FootfallGate
+from app.models.camera import Camera
 
 router = APIRouter(prefix="/api/footfall", tags=["Footfall Analytics"])
 
@@ -165,4 +166,123 @@ async def get_footfall_stats(
         "raw_records": [r.to_dict() for r in recent_records[-10:]]
     }
 
+
+
+
+@router.get("/gates/{cam_id}")
+async def get_footfall_gate(
+    cam_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get the configured entry/exit line for a camera."""
+    camera_result = await db.execute(
+        select(Camera).where(Camera.cam_id == cam_id)
+    )
+    camera = camera_result.scalar_one_or_none()
+
+    if camera is None:
+        raise HTTPException(status_code=404, detail="Camera not found")
+
+    gate_result = await db.execute(
+        select(FootfallGate).where(FootfallGate.cam_id == cam_id)
+    )
+    gate = gate_result.scalar_one_or_none()
+
+    if gate is None:
+        return {
+            "cam_id": cam_id,
+            "line_start": [0.25, 0.5],
+            "line_end": [0.75, 0.5],
+            "entry_side": 1,
+            "enabled": False,
+        }
+
+    return gate.to_dict()
+
+
+@router.put("/gates/{cam_id}")
+async def save_footfall_gate(
+    cam_id: str,
+    payload: Dict[str, Any] = Body(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create or update a camera's entry/exit line."""
+    camera_result = await db.execute(
+        select(Camera).where(Camera.cam_id == cam_id)
+    )
+    camera = camera_result.scalar_one_or_none()
+
+    if camera is None:
+        raise HTTPException(status_code=404, detail="Camera not found")
+
+    line_start = payload.get("line_start")
+    line_end = payload.get("line_end")
+    entry_side = payload.get("entry_side", 1)
+    enabled = payload.get("enabled", False)
+
+    for name, point in (
+        ("line_start", line_start),
+        ("line_end", line_end),
+    ):
+        if (
+            not isinstance(point, list)
+            or len(point) != 2
+            or any(
+                not isinstance(value, (int, float))
+                or isinstance(value, bool)
+                or not 0 <= value <= 1
+                for value in point
+            )
+        ):
+            raise HTTPException(
+                status_code=422,
+                detail=f"{name} must contain two normalized coordinates between 0 and 1",
+            )
+
+    if line_start == line_end:
+        raise HTTPException(
+            status_code=422,
+            detail="The gate line endpoints must be different",
+        )
+
+    if (
+        not isinstance(entry_side, int)
+        or isinstance(entry_side, bool)
+        or entry_side not in (-1, 1)
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail="entry_side must be 1 or -1",
+        )
+
+    if not isinstance(enabled, bool):
+        raise HTTPException(
+            status_code=422,
+            detail="enabled must be a boolean",
+        )
+
+    gate_result = await db.execute(
+        select(FootfallGate).where(FootfallGate.cam_id == cam_id)
+    )
+    gate = gate_result.scalar_one_or_none()
+
+    if gate is None:
+        gate = FootfallGate(
+            cam_id=cam_id,
+            line_start=line_start,
+            line_end=line_end,
+            entry_side=entry_side,
+            enabled=enabled,
+        )
+        db.add(gate)
+    else:
+        gate.line_start = line_start
+        gate.line_end = line_end
+        gate.entry_side = entry_side
+        gate.enabled = enabled
+
+    await db.commit()
+    await db.refresh(gate)
+
+    return gate.to_dict()
 
