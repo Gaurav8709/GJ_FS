@@ -155,6 +155,29 @@ export const getFootfallStats = (camId, startDate, endDate, startTime, endTime) 
 };
 export const updateFootfall = (payload) => apiFetch('/api/footfall/listener-update', { method: 'POST', body: JSON.stringify(payload) });
 
+/* ---------- Entry/Exit Crossing Events ---------- */
+
+export const getFootfallGate = (camId) =>
+  apiFetch(`/api/footfall/gates/${encodeURIComponent(camId)}`);
+
+export const saveFootfallGate = (camId, payload) =>
+  apiFetch(`/api/footfall/gates/${encodeURIComponent(camId)}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+
+export const getFootfallEvents = (filters = {}) => {
+  const params = new URLSearchParams();
+
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== '' && value !== null && value !== undefined) {
+      params.set(key, String(value));
+    }
+  });
+
+  return apiFetch(`/api/footfall/events?${params.toString()}`);
+};
+
 /* ---------- Face Alerts & Employee Monitoring ---------- */
 export const getEmployees = () => apiFetch('/api/face-alerts/employees');
 export const triggerFaceAlert = (payload) => apiFetch('/api/face-alerts/detect', { method: 'POST', body: JSON.stringify(payload) });

@@ -7,11 +7,12 @@ import datetime
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, extract
 
 from app.database import get_db
 from app.models.new_features import FootfallRecord, FootfallEvent, FootfallGate
 from app.models.camera import Camera
+from app.services.camera_manager import CameraManager
 
 router = APIRouter(prefix="/api/footfall", tags=["Footfall Analytics"])
 
@@ -86,7 +87,7 @@ async def get_footfall_stats(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Returns aggregated footfall statistics, timestamped history, gender & age distributions 
+    Returns aggregated footfall statistics, timestamped history, gender & age distributions
     filtered by date range, time duration, or specific camera stream.
     """
     default_start = datetime.datetime(2026, 9, 28, 0, 0, 0)
@@ -281,8 +282,131 @@ async def save_footfall_gate(
         gate.entry_side = entry_side
         gate.enabled = enabled
 
+
     await db.commit()
     await db.refresh(gate)
 
+    # Apply the new configuration without restarting the camera.
+    manager = CameraManager.get_instance()
+    processor = manager.get_processor(cam_id)
+
+    if processor is not None:
+        processor.update_footfall_gate(gate.to_dict())
+
     return gate.to_dict()
 
+
+@router.get("/events")
+async def get_footfall_events(
+    cam_id: Optional[str] = Query(None),
+    event_type: Optional[str] = Query(None),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    start_time: Optional[str] = Query(None),
+    end_time: Optional[str] = Query(None),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return separate entry/exit crossing records with pagination and filters."""
+    conditions = []
+
+    if cam_id:
+        conditions.append(FootfallEvent.cam_id == cam_id)
+
+    if event_type:
+        normalized_type = event_type.upper()
+        if normalized_type not in ("ENTRY", "EXIT"):
+            raise HTTPException(
+                status_code=422,
+                detail="event_type must be ENTRY or EXIT",
+            )
+        conditions.append(FootfallEvent.event_type == normalized_type)
+
+    try:
+        if start_date:
+            parsed_date = datetime.datetime.strptime(
+                start_date, "%Y-%m-%d"
+            ).date()
+
+            start_dt = datetime.datetime.combine(
+                parsed_date,
+                datetime.time.min,
+            )
+
+            if start_time:
+                parsed_time = datetime.time.fromisoformat(start_time)
+                start_dt = datetime.datetime.combine(
+                    parsed_date, parsed_time
+                )
+
+            conditions.append(FootfallEvent.timestamp >= start_dt)
+
+        if end_date:
+            parsed_date = datetime.datetime.strptime(
+                end_date, "%Y-%m-%d"
+            ).date()
+
+            end_dt = datetime.datetime.combine(
+                parsed_date,
+                datetime.time.max,
+            )
+
+            if end_time:
+                parsed_time = datetime.time.fromisoformat(end_time)
+                end_dt = datetime.datetime.combine(
+                    parsed_date, parsed_time
+                )
+
+            conditions.append(FootfallEvent.timestamp <= end_dt)
+
+        # Time-only filters also work when a date is not specified.
+        timestamp_minutes = (
+            extract("hour", FootfallEvent.timestamp) * 60
+            + extract("minute", FootfallEvent.timestamp)
+        )
+
+        if start_time and not start_date:
+            parsed_time = datetime.time.fromisoformat(start_time)
+            conditions.append(
+                timestamp_minutes
+                >= parsed_time.hour * 60 + parsed_time.minute
+            )
+
+        if end_time and not end_date:
+            parsed_time = datetime.time.fromisoformat(end_time)
+            conditions.append(
+                timestamp_minutes
+                <= parsed_time.hour * 60 + parsed_time.minute
+            )
+
+    except ValueError:
+        raise HTTPException(
+            status_code=422,
+            detail="Dates must use YYYY-MM-DD and times must use HH:MM",
+        )
+
+    count_result = await db.execute(
+        select(func.count(FootfallEvent.id)).where(*conditions)
+    )
+    total = count_result.scalar_one()
+
+    result = await db.execute(
+        select(FootfallEvent)
+        .where(*conditions)
+        .order_by(
+            FootfallEvent.timestamp.desc(),
+            FootfallEvent.id.desc(),
+        )
+        .offset(offset)
+        .limit(limit)
+    )
+
+    events = result.scalars().all()
+
+    return {
+        "items": [event.to_dict() for event in events],
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }

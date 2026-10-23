@@ -5,6 +5,8 @@ import {
   getFootfallCamerasConfig, 
   importFootfallCamerasConfig 
 } from '../api/api.js';
+import FootfallGateEditor from './FootfallGateEditor.jsx';
+import FootfallEventHistory from './FootfallEventHistory.jsx';
 import './FootfallView.css';
 
 /* ----------------------------------------------------

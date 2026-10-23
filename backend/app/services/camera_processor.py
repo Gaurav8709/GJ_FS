@@ -52,6 +52,11 @@ from app.services.zone_engine import (
 )
 from app.utils.tracker import CentroidTracker
 
+
+from app.services.footfall_crossing import FootfallCrossingDetector
+from app.services.footfall_event_service import enqueue_footfall_event
+
+
 logger = logging.getLogger("gjfashion.camera")
 
 
@@ -88,9 +93,14 @@ class CameraProcessor:
         rtsp_url: str,
         zones: Optional[List[ZoneConfig]] = None,
         engine: Optional[DetectionEngine] = None,
+        footfall_gate: Optional[dict] = None,
     ):
         self.cam_id = cam_id
         self.rtsp_url = rtsp_url
+        self._footfall_detector = FootfallCrossingDetector(
+            cam_id=cam_id,
+            gate=footfall_gate,
+        )
         self._engine = engine or DetectionEngine.get_instance()
 
         # Zone configuration — can be updated at runtime
@@ -158,6 +168,12 @@ class CameraProcessor:
         """Get current zone configs (thread-safe copy)."""
         with self._zones_lock:
             return list(self._zones)
+
+
+    def update_footfall_gate(self, gate: Optional[dict]):
+        """Apply a saved footfall gate to this running camera."""
+        self._footfall_detector.update_gate(gate)
+
 
     # ── Reader Thread ───────────────────────────────────────
 
