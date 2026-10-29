@@ -528,6 +528,13 @@ export default function FootfallView({ cameras: initialCameras = [] }) {
         </div>
       </div>
 
+
+      {/* Feature 2: Separate entry/exit snapshots and event records */}
+      <FootfallGateEditor cameras={camList} />
+      <FootfallEventHistory cameras={camList} />
+      {/* Feature 2: Independent entry/exit gate configuration and event history */}
+      <FootfallGateEditor cameras={camList} />
+      <FootfallEventHistory cameras={camList} />
       {/* Import Modal */}
       {showImportModal && (
         <div className="modal-backdrop">

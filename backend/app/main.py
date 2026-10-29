@@ -29,14 +29,8 @@ logger = logging.getLogger("gjfashion.main")
 async def lifespan(app: FastAPI):
     """Lifecycle events for FastAPI."""
     logger.info("Starting up GJ-Fashion API...")
-    import asyncio
-    from app.services.footfall_event_service import (
-        configure_footfall_event_loop,
-    )
 
-    configure_footfall_event_loop(asyncio.get_running_loop())
-
-        # Footfall event writes must use the FastAPI application's event loop.
+    # Configure the event loop used for asynchronous footfall event writes.
     import asyncio
     from app.services.footfall_event_service import (
         configure_footfall_event_loop,

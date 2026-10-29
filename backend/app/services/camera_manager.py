@@ -63,6 +63,7 @@ class CameraManager:
                 rtsp_url=cam.rtsp_url,
                 zones=zones,
                 footfall_gate=footfall_gates.get(cam.cam_id),
+                camera_name=cam.name,
             )
             self._processors[cam.cam_id] = processor
 
@@ -110,19 +111,21 @@ class CameraManager:
             return False
 
         zones = self._build_zone_configs(cam.zones)
-        processor = CameraProcessor(
-            cam_id=cam.cam_id,
-            rtsp_url=cam.rtsp_url,
-            zones=zones,
-            footfall_gate=footfall_gate,
-        )
 
-
+        # Load the saved entry/exit gate before creating the processor.
         gate_result = await db.execute(
             select(FootfallGate).where(FootfallGate.cam_id == cam_id)
         )
         saved_gate = gate_result.scalar_one_or_none()
         footfall_gate = saved_gate.to_dict() if saved_gate else None
+
+        processor = CameraProcessor(
+            cam_id=cam.cam_id,
+            rtsp_url=cam.rtsp_url,
+            zones=zones,
+            footfall_gate=footfall_gate,
+            camera_name=cam.name,
+        )
 
         self._processors[cam_id] = processor
         processor.start()

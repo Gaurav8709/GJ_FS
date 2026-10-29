@@ -3,6 +3,7 @@ GJ-Fashion — FRS, Forensics, Footfall, Face Alert, and Heatmap ORM Models
 """
 
 import datetime
+import uuid
 from sqlalchemy import (
     Column, Integer, String, Boolean, DateTime, ForeignKey, Text, Float, JSON
 )
@@ -169,7 +170,7 @@ class EmployeeDetectionLog(Base):
 
 
 
-import uuid
+
 
 
 class FootfallEvent(Base):

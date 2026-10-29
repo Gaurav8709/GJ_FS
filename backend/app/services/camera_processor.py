@@ -94,9 +94,12 @@ class CameraProcessor:
         zones: Optional[List[ZoneConfig]] = None,
         engine: Optional[DetectionEngine] = None,
         footfall_gate: Optional[dict] = None,
+        camera_name: Optional[str] = None,
     ):
         self.cam_id = cam_id
         self.rtsp_url = rtsp_url
+        self.camera_name = camera_name or cam_id
+
         self._footfall_detector = FootfallCrossingDetector(
             cam_id=cam_id,
             gate=footfall_gate,
@@ -306,10 +309,128 @@ class CameraProcessor:
                         
             if best_det is not None:
                 best_det.id = obj_id
+        # Detect independent entry/exit events after tracking IDs are assigned.
+        crossing_events = self._footfall_detector.update(detections)
 
+        if crossing_events:
+            with self._frame_lock:
+                snapshot_frame = (
+                    self._latest_frame.copy()
+                    if self._latest_frame is not None
+                    else None
+                )
+
+            if snapshot_frame is not None:
+                frame_h, frame_w = snapshot_frame.shape[:2]
+
+                for det, event_type in crossing_events:
+                    if det.id is None:
+                        continue
+
+                    try:
+                        x1, y1, x2, y2 = (
+                            int(round(v)) for v in det.bbox
+                        )
+                    except (TypeError, ValueError):
+                        continue
+
+                    # Clamp the person bounding box to the frame dimensions.
+                    x1 = max(0, min(frame_w, x1))
+                    y1 = max(0, min(frame_h, y1))
+                    x2 = max(0, min(frame_w, x2))
+                    y2 = max(0, min(frame_h, y2))
+
+                    if x2 <= x1 or y2 <= y1:
+                        continue
+
+                    person_crop = snapshot_frame[y1:y2, x1:x2]
+
+                    if person_crop.size == 0:
+                        continue
+
+                    ok, buf = cv2.imencode(
+                        ".jpg",
+                        person_crop,
+                        [int(cv2.IMWRITE_JPEG_QUALITY), 90],
+                    )
+
+                    if not ok:
+                        logger.warning(
+                            "[%s] Failed to encode footfall snapshot",
+                            self.cam_id,
+                        )
+                        continue
+
+                    enqueue_footfall_event(
+                        cam_id=self.cam_id,
+                        tracking_id=str(det.id),
+                        event_type=event_type,
+                        timestamp=datetime.datetime.utcnow(),
+                        snapshot_bytes=buf.tobytes(),
+                        camera_name=self.camera_name,
+                    )
         # Get current zones
         with self._zones_lock:
             zones = list(self._zones)
+
+
+                # Entry/exit crossing events are independent of aggregate footfall stats.
+        crossing_events = self._footfall_detector.update(detections)
+
+        if crossing_events:
+            with self._frame_lock:
+                snapshot_frame = (
+                    self._latest_frame.copy()
+                    if self._latest_frame is not None
+                    else None
+                )
+
+            if snapshot_frame is not None:
+                frame_h, frame_w = snapshot_frame.shape[:2]
+
+                for detection, event_type in crossing_events:
+                    if detection.id is None:
+                        continue
+
+                    x1, y1, x2, y2 = map(int, detection.bbox)
+                    box_w = x2 - x1
+                    box_h = y2 - y1
+
+                    pad_x = int(box_w * 0.12)
+                    pad_y = int(box_h * 0.10)
+
+                    x1 = max(0, x1 - pad_x)
+                    y1 = max(0, y1 - pad_y)
+                    x2 = min(frame_w, x2 + pad_x)
+                    y2 = min(frame_h, y2 + pad_y)
+
+                    if x2 <= x1 or y2 <= y1:
+                        continue
+
+                    person_crop = snapshot_frame[y1:y2, x1:x2]
+
+                    if person_crop.size == 0:
+                        continue
+
+                    encoded_ok, encoded_image = cv2.imencode(
+                        ".jpg",
+                        person_crop,
+                        [int(cv2.IMWRITE_JPEG_QUALITY), 90],
+                    )
+
+                    if not encoded_ok:
+                        continue
+
+                    event_timestamp = datetime.datetime.utcnow()
+
+                    enqueue_footfall_event(
+                        cam_id=self.cam_id,
+                        tracking_id=str(detection.id),
+                        event_type=event_type,
+                        timestamp=event_timestamp,
+                        snapshot_bytes=encoded_image.tobytes(),
+                    )
+
 
         # Classify detections into zones
         zone_results = classify_detections(detections, zones)

@@ -100,7 +100,16 @@ export default function FootfallEventHistory({ cameras = [] }) {
           {loading ? 'Refreshing…' : 'Refresh'}
         </button>
       </div>
-
+      {loading && (
+        <div
+          className="footfall-loading-progress"
+          role="progressbar"
+          aria-label="Loading footfall events"
+          aria-valuetext="Loading"
+        >
+          <div className="footfall-loading-progress-bar" />
+        </div>
+      )}
       <div className="footfall-event-filters">
         <label>
           <span>Camera</span>
